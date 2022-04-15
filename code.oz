@@ -1,9 +1,12 @@
 local
+   %Auteur : Thomas Lamby     NOMA: 27312000
+             
+   
    % See project statement for API details.
    [Project] = {Link ['Project2022.ozf']}
-   Time = {Link ['x-oz://boot/Time']}.1.getReferenceTime
+   %Time = {Link ['x-oz:\\boot\Time']}.1.getReferenceTime
 
-   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
    % Translate a note to the extended notation.
    fun {NoteToExtended Note}
@@ -13,20 +16,20 @@ local
       [] silence then
 	 silence(duration:1.0)
       [] Atom then
-         case {AtomToString Atom}
-         of [_] then
-            note(name:Atom octave:4 sharp:false duration:1.0 instrument:none)
-         [] [N O] then
-            note(name:{StringToAtom [N]}
-                 octave:{StringToInt [O]}
-                 sharp:false
-                 duration:1.0
-                 instrument: none)
-         end
+	 case {AtomToString Atom}
+	 of [_] then
+	    note(name:Atom octave:4 sharp:false duration:1.0 instrument:none)
+	 [] [N O] then
+	    note(name:{StringToAtom [N]}
+		 octave:{StringToInt [O]}
+		 sharp:false
+		 duration:1.0
+		 instrument: none)
+	 end
       end
    end
 
-   % Cette fonction fixe la durï¿½e de la partition au nombre de secondes indiquï¿½.
+   % Cette fonction fixe la duree de la partition au nombre de secondes indique.
    fun {Duration Second Partition}
       local Sum Factor
 	 Sum =
@@ -46,13 +49,13 @@ local
 	    end
 	 end
       in
-	 Factor = Second/{Sum {PartitionToTimedList Partition}}
+	 Factor = Second/{Sum {PartitionToTimedList Partition} 0}
 	 {Stretch Factor Partition}
 	 
       end
    end
    
-   % Cette fonction ï¿½tire la durï¿½e de la partition par le facteur indiquï¿½
+   % Cette fonction etire la duree de la partition par le facteur indique
    fun {Stretch Factor Partition}
       case Partition
       of nil then
@@ -69,50 +72,49 @@ local
 	    case H2
 	    of note(name:Name octave:Octave sharp:Sharp duration:Duration instrument:Instrument) then
 	       H2.duration = H2.duration * Factor
-	       {Stretch Factor T2}
+	       T2 = {Stretch Factor T2}
 	       {Stretch Factor T}
-	    [] silence(duration:Duration) then %peut etre pas nï¿½cessaire en pratique mais grammaire
+	    [] silence(duration:Duration) then %peut etre pas necessaire en pratique mais grammaire
 	       H2.duration = H2.duration * Factor
-	       {Stretch Factor T2}
+	       T2 = {Stretch Factor T2}
 	       {Stretch Factor T}
 	    end
 	 end
       end
    end
    
-   % Cette fonction créer une partition comprenant la note Note un nombre Amount de fois
+   % Cette fonction crï¿½er une partition comprenant la note Note un nombre Amount de fois
    fun {Drone Note Amount}
-      if Amount == 0
-      then nil
+      if Amount == 0 then
+	 nil
       else
 	 case Note
 	 of note(name:Name octave:Octave sharp:Sharp duration:Duration instrument:Instrument) then
 	    Note|{Drone Note Amount-1}
-	 else then
+	 else
 	    {NoteToExtended Note}|{Drone Note Amount-1}
 	 end
       end
    end    
 	 
 	 
-   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
    fun {Transpose Semitone Partition}
-      {PartitionToTimedList Partition}	 
+      Partition = {PartitionToTimedList Partition}	 
       case Partition
-      of nil then nil
+      of nil then
+	 nil
       [] H|T then
-
-	 
-
+	 nil
       end
    end
    
-   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
    fun {PartitionToTimedList Partition}
       case Partition
-      of nil then nil
-	 
+      of nil then
+	 nil
       [] H|T then
 	 case H
 	 of Name#Octave then
@@ -151,51 +153,53 @@ local
 	    of note(name:Name octave:Octave sharp:Sharp duration:Duration instrument:Instrument) then
 	       {PartitionToTimedList T}
 	       
-	    [] silence(duration:Duration) then %pas sï¿½re qu'il y ai besoin en pratique mais grammaire
+	    [] silence(duration:Duration) then %pas sure qu'il y ai besoin en pratique mais grammaire
 	       {PartitionToTimedList T}
 
 	    [] Name#Octave then
-	       H2 = {NoteToExtend H2}
-	       {PartitionToTimedList T2}
+	       H2 = {NoteToExtended H2}
+	       T2 = {PartitionToTimedList T2}
 	       {PartitionToTimedList T}
 	    [] Atom then
-	       H2 = {NoteToExtend H2}
-	       {PartitionToTimedList T2}
-               {PartitionToTimedList T}
+	       H2 = {NoteToExtended H2}
+	       T2 = {PartitionToTimedList T2}
+	       {PartitionToTimedList T}
 	    end
 	 end
       end
    end
 
-   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-   fun {Mix P2T Music}
+   %fun {Mix P2T Music}
       % TODO
-      {Project.readFile 'wave/animals/cow.wav'}
-   end
+    %  {Project.readFile 'wave\animals\cow.wav'}
+   %end
 
-   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
    Music = {Project.load 'joy.dj.oz'}
    Start
-
+   Son = [a b b g stretch(factor:0.5 [d]) [a b b]]
    % Uncomment next line to insert your tests.
    % \insert 'tests.oz'
    % !!! Remove this before submitting.
 in
-   Start = {Time}
+   {Browse PartitionToTimedList Son}
+   %Start = {Time}
 
    % Uncomment next line to run your tests.
    % {Test Mix PartitionToTimedList}
 
    % Add variables to this list to avoid "local variable used only once"
    % warnings.
-   {ForAll [NoteToExtended Music] Wait}
+   %{ForAll [NoteToExtended Music] Wait}
    
    % Calls your code, prints the result and outputs the result to `out.wav`.
    % You don't need to modify this.
-   {Browse {Project.run Mix PartitionToTimedList Music 'out.wav'}}
+   %{Browse {Project.run Mix PartitionToTimedList Music 'out.wav'}}
    
    % Shows the total time to run your code.
-   {Browse {IntToFloat {Time}-Start} / 1000.0}
+   %{Browse {IntToFloat {Time}-Start} / 1000.0}
+   
 end
