@@ -1,9 +1,7 @@
 local
-   %Auteur : Thomas Lamby     NOMA: 27312000
-             
-   
+   %Auteur : Thomas Lamby     NOMA: 27312000        
    % See project statement for API details.
-   [Project] = {Link ['Project2022.ozf']}
+   %[Project] = {Link ['Project2022.ozf']}
    %Time = {Link ['x-oz:\\boot\Time']}.1.getReferenceTime
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -118,52 +116,45 @@ local
       [] H|T then
 	 case H
 	 of Name#Octave then
-	    H  = {NoteToExtended H}
-	    {PartitionToTimedList T}
+	    {NoteToExtended H}|{PartitionToTimedList T}
 	    
 	 [] Atom then
-	    H = {NoteToExtended H}
-	    {PartitionToTimedList T}
+	    {NoteToExtended H}|{PartitionToTimedList T}
+	    
 	 [] silence then
-	    H = {NoteToExtended H}
+	    {NoteToExtended H}|{PartitionToTimedList T}
 	    
 	 [] note(name:Name octave:Octave sharp:Sharp duration:Duration instrument:Instrument) then
-	    {PartitionToTimedList T}
+	    H|{PartitionToTimedList T}
 
 	 [] silence(duration:Duration) then
-	    {PartitionToTimedList T}
+	    H|{PartitionToTimedList T}
 
 	 [] duration(seconds:Duration Partition) then
-	    H = {Duration duration.seconds {PartitionToTimedList duration.2}}
-	    {PartitionToTimedList T}
+	    {Duration duration.seconds {PartitionToTimedList duration.2}}|{PartitionToTimedList T}
 	    
 	 [] stretch(factor:Factor Partition) then
-	    H = {Stretch stretch.factor {PartitionToTimedList stretch.2}}
-	    {PartitionToTimedList T}
+	    {Stretch stretch.factor {PartitionToTimedList stretch.2}}|{PartitionToTimedList T}
 
 	 [] drone(note:Note amount:Amount) then
-	    H = {Drone drone.note drone.amount} %peut etre H.note, idem pour les autres transfo 
-	    {PartitionToTimedList T}
-	    
+	    {Drone drone.note drone.amount}|{PartitionToTimedList T}
+	    %peut etre H.note, idem pour les autres transfo
 	    
 	    
 	 [] H2|T2 then
 	    case H2
 	       
 	    of note(name:Name octave:Octave sharp:Sharp duration:Duration instrument:Instrument) then
-	       {PartitionToTimedList T}
+	       H|{PartitionToTimedList T}
 	       
 	    [] silence(duration:Duration) then %pas sure qu'il y ai besoin en pratique mais grammaire
-	       {PartitionToTimedList T}
+	       H|{PartitionToTimedList T}
 
 	    [] Name#Octave then
-	       H2 = {NoteToExtended H2}
-	       T2 = {PartitionToTimedList T2}
-	       {PartitionToTimedList T}
+	       {PartitionToTimedList H}|{PartitionToTimedList T}
+	       
 	    [] Atom then
-	       H2 = {NoteToExtended H2}
-	       T2 = {PartitionToTimedList T2}
-	       {PartitionToTimedList T}
+	       {PartitionToTimedList H}|{PartitionToTimedList T}
 	    end
 	 end
       end
@@ -178,14 +169,16 @@ local
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-   Music = {Project.load 'joy.dj.oz'}
-   Start
-   Son = [a b b g stretch(factor:0.5 [d]) [a b b]]
+   %Music = {Project.load 'joy.dj.oz'}
+   %Start
+   Son = [c c c#5 b b]
    % Uncomment next line to insert your tests.
    % \insert 'tests.oz'
    % !!! Remove this before submitting.
 in
-   {Browse PartitionToTimedList Son}
+   
+   {Browse {PartitionToTimedList Son}}
+   
    %Start = {Time}
 
    % Uncomment next line to run your tests.
