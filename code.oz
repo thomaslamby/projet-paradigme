@@ -28,7 +28,7 @@ local
    end
 
    % Cette fonction fixe la duree de la partition au nombre de secondes indique.
-   fun {Duration Second Partition}
+   fun {Duration Seconds Partition}
       local Sum Factor
 	 Sum =
 	 fun {$ Partition N}
@@ -47,7 +47,7 @@ local
 	    end
 	 end
       in
-	 Factor = Second/{Sum {PartitionToTimedList Partition} 0}
+	 Factor = {Float.'/' Seconds {Sum Partition 0.0}}
 	 {Stretch Factor Partition}
 	 
       end
@@ -55,43 +55,38 @@ local
    
    % Cette fonction etire la duree de la partition par le facteur indique
    fun {Stretch Factor Partition}
-      case Partition
-      of nil then
-	 nil
-      [] H|T then
-	 case H
-	 of note(name:Name octave:Octave sharp:Sharp duration:Duration instrument:Instrument) then
-	    H.duration = H.duration * Factor
-	    {Stretch Factor T}
-	 [] silence(duration:Duration) then
-	    H.duration = H.duration * Factor
-	    {Stretch Factor T}
-	 [] H2|T2 then
-	    case H2
+      local X in
+	 case Partition
+	 of nil then
+	    nil
+	 [] H|T then
+	    case H
 	    of note(name:Name octave:Octave sharp:Sharp duration:Duration instrument:Instrument) then
-	       H2.duration = H2.duration * Factor
-	       T2 = {Stretch Factor T2}
-	       {Stretch Factor T}
-	    [] silence(duration:Duration) then %peut etre pas necessaire en pratique mais grammaire
-	       H2.duration = H2.duration * Factor
-	       T2 = {Stretch Factor T2}
-	       {Stretch Factor T}
+	       X = note(name:H.name octave:H.octave sharp:H.sharp duration:H.duration*Factor intrument:Instrument)
+	       X|{Stretch Factor T}
+	    [] silence(duration:Duration) then
+	       X = silence(duration:H.duration*Factor)
+           	       X|{Stretch Factor T}
+	    [] H2|T2 then
+	       case H2
+	       of note(name:Name octave:Octave sharp:Sharp duration:Duration instrument:Instrument) then
+		  X = note(name:H.name octave:H.octave sharp:H.sharp duration:H.duration*Factor intrument:Instrument)
+		  X|{Stretch Factor T2}|{Stretch Factor T}
+	       [] silence(duration:Duration) then %peut etre pas necessaire en pratique mais grammaire
+		  X = silence(duration:H.duration*Factor)
+		  X|{Stretch Factor T2}|{Stretch Factor T}
+	       end
 	    end
 	 end
       end
    end
    
    % Cette fonction cr�er une partition comprenant la note Note un nombre Amount de fois
-   fun {Drone Note Amount}
+   fun {Drone Note Amount Partition}
       if Amount == 0 then
-	 nil
+	 {PartitionToTimedList Partition}
       else
-	 case Note
-	 of note(name:Name octave:Octave sharp:Sharp duration:Duration instrument:Instrument) then
-	    Note|{Drone Note Amount-1}
-	 else
-	    {NoteToExtended Note}|{Drone Note Amount-1}
-	 end
+	 Note|{Drone Note Amount-1 Partition}
       end
    end    
 	 
@@ -118,8 +113,30 @@ local
 	 of Name#Octave then
 	    {NoteToExtended H}|{PartitionToTimedList T}
 	    
-	 [] Atom then
-	    {NoteToExtended H}|{PartitionToTimedList T}
+	 [] stretch(factor:Factor Partition) then
+	    {Stretch H.factor {PartitionToTimedList  H.1}}|{PartitionToTimedList T}
+
+	 [] duration(seconds:Duration Partition) then
+     	    {Duration H.seconds {PartitionToTimedList H.1}}|{PartitionToTimedList T}
+
+	 [] drone(note:Note amount:Amount) then
+     	    {Drone {PartitionToTimedList H.note} H.amount T}
+
+     [] H2|T2 then
+     	    case H2
+
+     	    of note(name:Name octave:Octave sharp:Sharp duration:Duration instrument:Instrument) then
+     	       H|{PartitionToTimedList T}
+
+     	    [] silence(duration:Duration) then %pas sure qu'il y ai besoin en pratique mais grammaire
+     	       H|{PartitionToTimedList T}
+
+     	    [] Name#Octave then
+     	       {PartitionToTimedList H}|{PartitionToTimedList T}
+
+     	    [] Atom then
+     	       {PartitionToTimedList H}|{PartitionToTimedList T}
+     	    end
 	    
 	 [] silence then
 	    {NoteToExtended H}|{PartitionToTimedList T}
@@ -130,32 +147,8 @@ local
 	 [] silence(duration:Duration) then
 	    H|{PartitionToTimedList T}
 
-	 [] duration(seconds:Duration Partition) then
-	    {Duration duration.seconds {PartitionToTimedList duration.2}}|{PartitionToTimedList T}
-	    
-	 [] stretch(factor:Factor Partition) then
-	    {Stretch stretch.factor {PartitionToTimedList stretch.2}}|{PartitionToTimedList T}
-
-	 [] drone(note:Note amount:Amount) then
-	    {Drone drone.note drone.amount}|{PartitionToTimedList T}
-	    %peut etre H.note, idem pour les autres transfo
-	    
-	    
-	 [] H2|T2 then
-	    case H2
-	       
-	    of note(name:Name octave:Octave sharp:Sharp duration:Duration instrument:Instrument) then
-	       H|{PartitionToTimedList T}
-	       
-	    [] silence(duration:Duration) then %pas sure qu'il y ai besoin en pratique mais grammaire
-	       H|{PartitionToTimedList T}
-
-	    [] Name#Octave then
-	       {PartitionToTimedList H}|{PartitionToTimedList T}
-	       
-	    [] Atom then
-	       {PartitionToTimedList H}|{PartitionToTimedList T}
-	    end
+     [] Atom then
+        {NoteToExtended H}|{PartitionToTimedList T}
 	 end
       end
    end
@@ -171,14 +164,13 @@ local
 
    %Music = {Project.load 'joy.dj.oz'}
    %Start
-   Son = [c c c#5 b b]
+   Son = [duration(seconds:30.0 [c c]) b b silence]
    % Uncomment next line to insert your tests.
    % \insert 'tests.oz'
    % !!! Remove this before submitting.
 in
-   
+   %{Browse {PartitionToTimedList Son}}
    {Browse {PartitionToTimedList Son}}
-   
    %Start = {Time}
 
    % Uncomment next line to run your tests.
