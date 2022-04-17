@@ -92,8 +92,7 @@ local
    end    
 
 	 
-%Cette fonction transpose la partition d'un certain nombre de demi-tons vers le haut
-(entier positif) ou vers le bas (entier négatif) ainsi que l'octave si nécessaire.
+%Cette fonction transpose la partition d'un certain nombre de demi-tons vers le haut (entier positif) ou vers le bas (entier negatif) ainsi que l'octave si necessaire.
    ListNote = [c c# d d# e f f# g g# a a# b]
    ReverseListNote = {List.reverse ListNote}
    fun {Transpose Partition Nsemitones Noctave}
