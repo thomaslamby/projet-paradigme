@@ -645,13 +645,25 @@ local
 	    {NoteToExtended H}|{PartitionToTimedList T}
 	    
 	 [] duration(seconds:Duration Partition) then
+	    if {Int.is H.seconds} then
+           {Duration {Int.toFloat H.seconds} {PartitionToTimedList H.1} T}
+        else
+           {Duration H.seconds {PartitionToTimedList H.1} T}
+        end
 	    {Duration H.seconds {PartitionToTimedList H.1} T}
 
 	 [] stretch(factor:Factor Partition) then
-     	    {Stretch H.factor {PartitionToTimedList  H.1} T}
-
+	    if {Int.is H.factor} then
+	       {Stretch {Int.toFloat H.factor} {PartitionToTimedList H.1} T}
+	    else
+	       {Stretch H.factor {PartitionToTimedList H.1} T}
+	    end
+	    
 	 [] drone(note:Note amount:Amount) then
-	    {Drone {PartitionToTimedList H.note} H.amount T}
+	    if {Int.is Amount} then
+	       {Drone {PartitionToTimedList H.note} H.amount T}
+	    else
+	       {Drone {PartitionToTimedList H.note} {Float.toInt H.amount} T}
 
 	 [] transpose(semitones:Semitones Partition) then
 	    {Transpose {PartitionToTimedList Partition} {Int.'mod' H.semitones 12} {Int.'div' H.semitones 12} T}
