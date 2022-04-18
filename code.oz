@@ -29,7 +29,7 @@ local
    end
 
    % Cette fonction fixe la duree de la partition au nombre de secondes indique.
-   fun {Duration Seconds Partition}
+   fun {Duration Seconds Partition T}
       local Sum Factor
 	 Sum =
 	 fun {$ Partition N}
@@ -49,33 +49,32 @@ local
 	 end
       in
 	 Factor = {Float.'/' Seconds {Sum Partition 0.0}}
-	 {Stretch Factor Partition}
-	 
+	 {Stretch Factor Partition T}
       end
    end
    
    % Cette fonction etire la duree de la partition par le facteur indique
-   fun {Stretch Factor Partition}
+   fun {Stretch Factor Partition V}
       local X in
 	 case Partition
 	 of nil then
-	    nil
+	    {PartitionToTimedList V}
 	 [] H|T then
 	    case H
 	    of note(name:Name octave:Octave sharp:Sharp duration:Duration instrument:Instrument) then
 	       X = note(name:H.name octave:H.octave sharp:H.sharp duration:H.duration*Factor intrument:Instrument)
-	       X|{Stretch Factor T}
+	       X|{Stretch Factor T V}
 	    [] silence(duration:Duration) then
 	       X = silence(duration:H.duration*Factor)
-           	       X|{Stretch Factor T}
+	       X|{Stretch Factor T V}
 	    [] H2|T2 then
 	       case H2
 	       of note(name:Name octave:Octave sharp:Sharp duration:Duration instrument:Instrument) then
 		  X = note(name:H.name octave:H.octave sharp:H.sharp duration:H.duration*Factor intrument:Instrument)
-		  X|{Stretch Factor T2}|{Stretch Factor T}
+		  X|{Stretch Factor T2 nil}|{Stretch Factor T V}
 	       [] silence(duration:Duration) then %peut etre pas necessaire en pratique mais grammaire
 		  X = silence(duration:H.duration*Factor)
-		  X|{Stretch Factor T2}|{Stretch Factor T}
+		  X|{Stretch Factor T2 nil}|{Stretch Factor T V}
 	       end
 	    end
 	 end
@@ -645,11 +644,11 @@ local
 	 of Name#Octave then
 	    {NoteToExtended H}|{PartitionToTimedList T}
 	    
-	 [] stretch(factor:Factor Partition) then
-	    {Stretch H.factor {PartitionToTimedList  H.1}}|{PartitionToTimedList T}
-
 	 [] duration(seconds:Duration Partition) then
-     	    {Duration H.seconds {PartitionToTimedList H.1}}|{PartitionToTimedList T}
+	    {Duration H.seconds {PartitionToTimedList H.1} T}
+
+	 [] stretch(factor:Factor Partition) then
+     	    {Stretch H.factor {PartitionToTimedList  H.1} T}
 
 	 [] drone(note:Note amount:Amount) then
 	    {Drone {PartitionToTimedList H.note} H.amount T}
@@ -699,13 +698,10 @@ local
 
    %Music = {Project.load 'joy.dj.oz'}
    %Start
-   Son = [transpose(semitones:18 [c c#4 d d#4 e f f#4 g g#4 a a#4 b]) b silence]
    % Uncomment next line to insert your tests.
    % \insert 'tests.oz'
    % !!! Remove this before submitting.
 in
-   %{Browse {PartitionToTimedList Son}}
-   {Browse {PartitionToTimedList Son}}
    %Start = {Time}
 
    % Uncomment next line to run your tests.
@@ -723,4 +719,5 @@ in
    %{Browse {IntToFloat {Time}-Start} / 1000.0}
    
 end
+
 
