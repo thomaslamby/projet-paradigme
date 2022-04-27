@@ -633,7 +633,7 @@ local
       end
    end
    
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Cette fonction prend une partition en entrée et retourne une flat partition.
 
    fun {PartitionToTimedList Partition}
       case Partition
@@ -646,12 +646,11 @@ local
 	    
 	 [] duration(seconds:Duration Partition) then
 	    if {Int.is H.seconds} then
-           {Duration {Int.toFloat H.seconds} {PartitionToTimedList H.1} T}
-        else
-           {Duration H.seconds {PartitionToTimedList H.1} T}
-        end
-	    {Duration H.seconds {PartitionToTimedList H.1} T}
-
+	       {Duration {Int.toFloat H.seconds} {PartitionToTimedList H.1} T}
+	    else
+	       {Duration H.seconds {PartitionToTimedList H.1} T}
+	    end
+	    
 	 [] stretch(factor:Factor Partition) then
 	    if {Int.is H.factor} then
 	       {Stretch {Int.toFloat H.factor} {PartitionToTimedList H.1} T}
@@ -664,12 +663,13 @@ local
 	       {Drone {PartitionToTimedList H.note} H.amount T}
 	    else
 	       {Drone {PartitionToTimedList H.note} {Float.toInt H.amount} T}
+	    end
 
 	 [] transpose(semitones:Semitones Partition) then
-	    {Transpose {PartitionToTimedList Partition} {Int.'mod' H.semitones 12} {Int.'div' H.semitones 12} T}
+	       {Transpose {PartitionToTimedList Partition} {Int.'mod' H.semitones 12} {Int.'div' H.semitones 12} T}
 
-     [] H2|T2 then
-     	    case H2
+	 [] H2|T2 then
+	    case H2
 
      	    of note(name:Name octave:Octave sharp:Sharp duration:Duration instrument:Instrument) then
      	       H|{PartitionToTimedList T}
@@ -681,9 +681,8 @@ local
      	       {PartitionToTimedList H}|{PartitionToTimedList T}
 
      	    [] Atom then
-     	       {PartitionToTimedList H}|{PartitionToTimedList T}
-     	    end
-	    
+	       {PartitionToTimedList H}|{PartitionToTimedList T}
+	    end
 	 [] silence then
 	    {NoteToExtended H}|{PartitionToTimedList T}
 	    
@@ -693,26 +692,157 @@ local
 	 [] silence(duration:Duration) then
 	    H|{PartitionToTimedList T}
 
-     [] Atom then
-        {NoteToExtended H}|{PartitionToTimedList T}
+	 [] Atom then
+	    {NoteToExtended H}|{PartitionToTimedList T}
 	 end
       end
    end
+   
+%Cette fonction additione les échantillons des musiques de la liste Musicwithintensifies après les avoir multiplier par leur facteur.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+   fun {Merge Musicwithintensifies}
+      %for all -> factor * Mix2
+      %addition toute les listes.
+      case Musicwithintensifies
+      of H|T then
+	 case H
+	 of Facteur#Music then
+	    Facteur * {Mix2 Music}|{Merge T}
+	 end
+      end
+   end
+   
+%Cette fonction répéte une musique un nombre Amount de fois
 
-   %fun {Mix P2T Music}
-      % TODO
+   fun {Repeat Amount Samples}
+
+   end
+   
+%Cette fonction boucle une musique pendant Duration secondes
+
+   fun {Loop Duration Samples}
+
+   end
+   
+%Cette fonction contraint les aéchantillons à une valeur plancher et plafond
+
+   fun {Clip Low High Samples}
+
+   end
+
+%Cette fonction introduit un echo avec un délais de Delay de secondes et intensifier par un nombre decay.
+
+   fun {Echo Delay Decay Samples}
+
+   end
+
+%Cette fonction créer un fondu au début et a la fin d'une musique d'une durée respective de start et finish secondes
+   fun{Fade Start Out Samples}
+
+   end
+
+%Cette fonction récupère la partie de la musique qui se trouve entre Start et Finish secondes, si cette intervalle est plus grand que la musique, celle ci est compléter par du silence
+   fun {Cut Start Finish Samples}
+
+   end
+   
+%Cette fonction calcule la liste d'échantillons d'une flat partition.
+
+%formule pour convertir un temps en nombre d'échantillon : temps en sec multiplier par 44100
+   fun {Echantillon FlatPartition}
+      local h f EList
+      in
+	 %Elist = list
+	 case FlatPartition
+	 of H|T then
+	    case H
+	    of silence(duration:Duration) then
+	       %for i in range H.duration*44100 EList append 0
+	    [] note(name:Name octave:Octave sharp:Sharp duration:Durationcinstrument:Instrument) then
+	       if H.name == c then
+		  if H.sharp == false then
+		     h =
+		  else
+		     h =
+		  end
+	       elseif H.name == d then
+		  if H.sharp ==false then
+		     h =
+		  else
+		     h =
+		  end
+	       elseif H.name == e then
+		  h =
+	       elseif H.name == f then
+		  if H.sharp == false then
+		     h =
+		  else
+		     h =
+		  end
+	       elseif H.name == g then
+		  
+		  
+		  
+	       
+	       
+   end
+   
+%Cette fonction prend une musique en entrée et retourne une liste d'échantillon.(Mix2 est là pour permettre la récursion)
+
+   fun {Mix P2T Music}
+      {Mix2 P2T Music}
+   end
+
+%idem  
+
+   fun {Mix2 P2T Music}
+      %h = différence par rapport à A4, f = 2**(h div 12)* 440 HZ, ai = 0.5*sin(2pi*f*i/44100)
+      case Music
+      of samples(Sample) then
+	 samples.1
+
+      [] partition(Partition) then
+	 {Echantillon {P2T partition.1}}
+
+      [] wave(Filename) then
+	 {Project.load wave.1}
+	 
+      [] merge(Musicwithintensifies) then
+	 {Merge Musicwithintensifies}
+
+      [] reverse(Music) then
+	 %{list.inverse {Mix2 reverse.1}}
+
+      [] repeat(amount:Amount Music) then
+	 {Repeat {Mix2 Music}}
+
+      [] loop(duration:Duration Music) then
+	 {Loop loop.duration {Mix2 loop.1}}
+	 %calcule la durée totale sur base du nombre de ai
+	 %{loop.duration div durée total} -> nombre de son total
+	 %loop.duration modulo durée total -> convertion en nombre de ai
+      [] clip(low:Sample high:Sample Music) then
+	 {Clip clip.low clip.high {Mix2 clip.1}}
+
+      [] echo(delay:Duration decay:Factor Music) then
+	 %egale merge avec clone précédé d'un silence de delay seconde(ai de silence = 0)
+	 {Echo echo.delay echo.decay {Mix2 echo.1}}
+
+      [] fade(start:Duration out:Duration Music) then
+	 {Fade fade.start fade.out {Mix2 fade.1}}
+
+      [] cut(start:Duration finish:Duration Music) then
+	 {Cut cut.start cut.finish {Mix2 Music}}
+	     
+	 
+	 
     %  {Project.readFile 'wave\animals\cow.wav'}
-   %end
+   end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
    %Music = {Project.load 'joy.dj.oz'}
    %Start
-   % Uncomment next line to insert your tests.
-   % \insert 'tests.oz'
-   % !!! Remove this before submitting.
 in
    %Start = {Time}
 
