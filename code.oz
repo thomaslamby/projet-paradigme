@@ -633,7 +633,7 @@ local
       end
    end
    
-% Cette fonction prend une partition en entrée et retourne une flat partition.
+% Cette fonction prend une partition en entree et retourne une flat partition.
 
    fun {PartitionToTimedList Partition}
       case Partition
@@ -698,7 +698,7 @@ local
       end
    end
    
-%Cette fonction additione les échantillons des musiques de la liste Musicwithintensifies après les avoir multiplier par leur facteur.
+%Cette fonction additione les echantillons des musiques de la liste Musicwithintensifies apres les avoir multiplier par leur facteur.
 
    fun {Merge Musicwithintensifies}
       %for all -> factor * Mix2
@@ -712,82 +712,202 @@ local
       end
    end
    
-%Cette fonction répéte une musique un nombre Amount de fois
+%Cette fonction repete une musique un nombre Amount de fois
 
    fun {Repeat Amount Samples}
-
+      for X in 1..Amount do
+	 {List.append Samples Samples}
+      end
    end
    
 %Cette fonction boucle une musique pendant Duration secondes
 
    fun {Loop Duration Samples}
-
+      local X Y Z
+      in
+	 X = {List.length Samples}
+	 Y = Duration * 44100.0
+	 Z = {Int.'div' Y X}
+	 A = {Int.'mod' Y X}
+	 if Z > 0 then
+	    for I in 1..Z do
+	       Samples = {List.append Samples Samples}
+	    end
+	 end
+	 if A > 0 then
+	    Samples = {List.append Samples {List.take A}}
+	 end
+	 Samples
+      end
    end
    
-%Cette fonction contraint les aéchantillons à une valeur plancher et plafond
+%Cette fonction contraint les echantillons a une valeur plancher et plafond
 
    fun {Clip Low High Samples}
-
+      local X
+      in
+	 X = {List.length Samples}
+	 for I in 1..X do
+	    if Samples.I < Low then
+	       Samples.I = Low
+	    elseif Samples.I > High then
+	       Samples.I = High
+	    end
+	 end
+	 Samples
+      end
    end
 
-%Cette fonction introduit un echo avec un délais de Delay de secondes et intensifier par un nombre decay.
+%Cette fonction introduit un echo avec un delais de Delay de secondes et intensifier par un nombre decay.
 
    fun {Echo Delay Decay Samples}
-
+      local Silence X
+      in
+	 X = Delay*44100
+	 for I in 1..X do
+	    Silence = {List.append Silence 0}
+	 end
+	 Silence = {List.append Silence Samples}
+	 {Merge 1.0#Samples|Decay#Silence}
    end
 
-%Cette fonction créer un fondu au début et a la fin d'une musique d'une durée respective de start et finish secondes
+%Cette fonction creer un fondu au debut et a la fin d'une musique d'une duree respective de start et finish secondes
    fun{Fade Start Out Samples}
 
    end
 
-%Cette fonction récupère la partie de la musique qui se trouve entre Start et Finish secondes, si cette intervalle est plus grand que la musique, celle ci est compléter par du silence
+%Cette fonction recupere la partie de la musique qui se trouve entre Start et Finish secondes, si cette intervalle est plus grand que la musique, celle ci est completer par du silence
    fun {Cut Start Finish Samples}
 
    end
    
-%Cette fonction calcule la liste d'échantillons d'une flat partition.
+%Cette fonction calcule la liste d'echantillons d'une flat partition.
 
-%formule pour convertir un temps en nombre d'échantillon : temps en sec multiplier par 44100
+%formule pour convertir un temps en nombre d'echantillon : temps en sec multiplier par 44100
    fun {Echantillon FlatPartition}
-      local h f EList
+      local Hauteur F D A Samples
       in
-	 %Elist = list
-	 case FlatPartition
-	 of H|T then
-	    case H
-	    of silence(duration:Duration) then
-	       %for i in range H.duration*44100 EList append 0
-	    [] note(name:Name octave:Octave sharp:Sharp duration:Durationcinstrument:Instrument) then
-	       if H.name == c then
-		  if H.sharp == false then
-		     h =
-		  else
-		     h =
+	 for X in FlatPartition do
+	    case X
+	    of H|T then
+	       case H
+	       of silence(duration:Duration) then
+	       [] note(name:Name octave:Octave sharp:Sharp duration:Durationcinstrument:Instrument) then
+		  if H.name == c then
+		     if H.sharp == false then
+			Hauteur = ~9.0 + (({Int.toFloat H.octave} - 4.0) * 12.0)
+			F = {Number.pow 2.0 {Float.'/' h 12.0)} * 440.0
+			D = H.duration * 44100.0
+			for Y in 1..d do
+			   A = 0.5 * {Float.sin ({Float.'/' (2.0 * 3.1415926535 * F * Y) 44100})}
+			   Samples = {List.append Samples A}
+			end
+		     else
+			Hauteur = ~8.0 + (({Int.toFloat H.octave} - 4.0) * 12.0)
+			F = {Number.pow 2.0 {Float.'/' h 12.0)} * 440.0
+			D = H.duration * 44100.0
+			for Y in 1..d do
+			   A = 0.5 * {Float.sin ({Float.'/' (2.0 * 3.1415926535 * F * Y) 44100})}
+			   Samples = {List.append Samples A}
+			end
+		     end
+		  elseif H.name == d then
+		     if H.sharp ==false then
+			Hauteur = ~7.0 + (({Int.toFloat H.octave} - 4.0) * 12.0)
+			F = {Number.pow 2.0 {Float.'/' h 12.0)} * 440.0
+			D = H.duration * 44100.0
+			for Y in 1..d do
+			   A = 0.5 * {Float.sin ({Float.'/' (2.0 * 3.1415926535 * F * Y) 44100})}
+			   Samples = {List.append Samples A}
+			end
+		     else
+			Hauteur = ~6.0 + (({Int.toFloat H.octave} - 4.0) * 12.0)
+			F = {Number.pow 2.0 {Float.'/' h 12.0)} * 440.0
+			D = H.duration * 44100.0
+			for Y in 1..d do
+			   A = 0.5 * {Float.sin ({Float.'/' (2.0 * 3.1415926535 * F * Y) 44100})}
+			   Samples = {List.append Samples A}
+			end
+		     end
+		  elseif H.name == e then
+		     Hauteur = ~5.0 + (({Int.toFloat H.octave} - 4.0) * 12.0)
+		     F = {Number.pow 2.0 {Float.'/' h 12.0)} * 440.0
+		     D = H.duration * 44100.0
+		     for Y in 1..d do
+			A = 0.5 * {Float.sin ({Float.'/' (2.0 * 3.1415926535 * F * Y) 44100})}
+			Samples = {List.append Samples A}
+		     end
+		  elseif H.name == f then
+		     if H.sharp == false then
+			Hauteur = ~4.0 + (({Int.toFloat H.octave} - 4.0) * 12.0)
+			F = {Number.pow 2.0 {Float.'/' h 12.0)} * 440.0
+			D = H.duration * 44100.0
+			for Y in 1..d do
+			   A = 0.5 * {Float.sin ({Float.'/' (2.0 * 3.1415926535 * F * Y) 44100})}
+			   Samples = {List.append Samples A}
+			end
+		     else
+			Hauteur = ~3.0 + (({Int.toFloat H.octave} - 4.0) * 12.0)
+			F = {Number.pow 2.0 {Float.'/' h 12.0)} * 440.0
+			D = H.duration * 44100.0
+			for Y in 1..d do
+			   A = 0.5 * {Float.sin ({Float.'/' (2.0 * 3.1415926535 * F * Y) 44100})}
+			   Samples = {List.append Samples A}
+			end
+		     end
+		  elseif H.name == g then
+		     if H.sharp == false then
+			Hauteur = ~2.0 + (({Int.toFloat H.octave} - 4.0) * 12.0)
+			F = {Number.pow 2.0 {Float.'/' h 12.0)} * 440.0
+			D = H.duration * 44100.0
+			for Y in 1..d do
+			   A = 0.5 * {Float.sin ({Float.'/' (2.0 * 3.1415926535 * F * Y) 44100})}
+			   Samples = {List.append Samples A}
+			end
+		     else
+			Hauteur = ~1.0 + (({Int.toFloat H.octave} - 4.0) * 12.0)
+			F = {Number.pow 2.0 {Float.'/' h 12.0)} * 440.0
+			D = H.duration * 44100.0
+			for Y in 1..d do
+			   A = 0.5 * {Float.sin ({Float.'/' (2.0 * 3.1415926535 * F * Y) 44100})}
+			   Samples = {List.append Samples A}
+			end
+		     end
+		  elseif H.name == a then
+		     if H.sharp == false then
+			Hauteur = 0.0 + (({Int.toFloat H.octave} - 4.0) * 12.0)
+			F = {Number.pow 2.0 {Float.'/' h 12.0)} * 440.0
+			D = H.duration * 44100.0
+			for Y in 1..d do
+			   A = 0.5 * {Float.sin ({Float.'/' (2.0 * 3.1415926535 * F * Y) 44100})}
+			   Samples = {List.append Samples A}
+			end
+		     else
+			Hauteur = 1.0 + (({Int.toFloat H.octave} - 4.0) * 12.0)
+			F = {Number.pow 2.0 {Float.'/' h 12.0)} * 440.0
+			D = H.duration * 44100.0
+			for Y in 1..d do
+			   A = 0.5 * {Float.sin ({Float.'/' (2.0 * 3.1415926535 * F * Y) 44100})}
+			   Samples = {List.append Samples A}
+			end
+		     end
+		  elseif H.name == b then
+		     Hauteur = 2.0 + (({Int.toFloat H.octave} - 4.0) * 12.0)
+		     F = {Number.pow 2.0 {Float.'/' h 12.0)} * 440.0
+		     D = H.duration * 44100.0
+		     for Y in 1..d do
+			A = 0.5 * {Float.sin ({Float.'/' (2.0 * 3.1415926535 * F * Y) 44100})}
+			Samples = {List.append Samples A}
+		     end
 		  end
-	       elseif H.name == d then
-		  if H.sharp ==false then
-		     h =
-		  else
-		     h =
-		  end
-	       elseif H.name == e then
-		  h =
-	       elseif H.name == f then
-		  if H.sharp == false then
-		     h =
-		  else
-		     h =
-		  end
-	       elseif H.name == g then
-		  
-		  
-		  
-	       
-	       
+	       end
+	    end
+	 end
+	 Samples
+      end
    end
    
-%Cette fonction prend une musique en entrée et retourne une liste d'échantillon.(Mix2 est là pour permettre la récursion)
+%Cette fonction prend une musique en entree et retourne une liste d'echantillon.(Mix2 est le pour permettre la recursion)
 
    fun {Mix P2T Music}
       {Mix2 P2T Music}
@@ -796,7 +916,7 @@ local
 %idem  
 
    fun {Mix2 P2T Music}
-      %h = différence par rapport à A4, f = 2**(h div 12)* 440 HZ, ai = 0.5*sin(2pi*f*i/44100)
+      %h = difference par rapport a A4, f = 2**(h div 12)* 440 HZ, ai = 0.5*sin(2pi*f*i/44100)
       case Music
       of samples(Sample) then
 	 samples.1
@@ -818,14 +938,14 @@ local
 
       [] loop(duration:Duration Music) then
 	 {Loop loop.duration {Mix2 loop.1}}
-	 %calcule la durée totale sur base du nombre de ai
-	 %{loop.duration div durée total} -> nombre de son total
-	 %loop.duration modulo durée total -> convertion en nombre de ai
+	 %calcule la duree totale sur base du nombre de ai
+	 %{loop.duration div duree total} -> nombre de son total
+	 %loop.duration modulo duree total -> convertion en nombre de ai
       [] clip(low:Sample high:Sample Music) then
 	 {Clip clip.low clip.high {Mix2 clip.1}}
 
       [] echo(delay:Duration decay:Factor Music) then
-	 %egale merge avec clone précédé d'un silence de delay seconde(ai de silence = 0)
+	 %egale merge avec clone precede d'un silence de delay seconde(ai de silence = 0)
 	 {Echo echo.delay echo.decay {Mix2 echo.1}}
 
       [] fade(start:Duration out:Duration Music) then
