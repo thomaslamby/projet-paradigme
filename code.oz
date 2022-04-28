@@ -4,7 +4,6 @@ local
    [Project] = {Link ['Project2022.ozf']}
    %Time = {Link ['x-oz:\\boot\Time']}.1.getReferenceTime
 
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
    % Translate a note to the extended notation.
@@ -803,6 +802,7 @@ local
    fun {Echantillon FlatPartition}
       local Hauteur F D A Samples
       in
+	 Samples = {List.make {List.length FlatPartition}}
 	 for H in FlatPartition do
 	    case H
 	    of silence(duration:Duration) then
@@ -813,12 +813,13 @@ local
 	    [] note(name:Name octave:Octave sharp:Sharp duration:Duration instrument:Instrument) then
 	       if H.name == c then
 		  if H.sharp == false then
-		     Hauteur = ~9.0 + (({Int.toFloat H.octave} - 4.0) * 12.0)
+		     Hauteur = (~9.0) + (({Int.toFloat H.octave} - 4.0) * 12.0)
 		     F = {Number.pow 2.0 {Float.'/' Hauteur 12.0}} * 4410.0
-		     D = H.duration * 44100.0
-		     for Y in 1.0..D;1.0 do
-			A = 0.5 * {Float.sin ({Float.'/' (2.0 * 3.1415926535 * F * Y) 44100.0})}
+		     D = {Float.toInt (H.duration * 44100.0)}
+		     for Y in 1..D do
+			A = 0.5 * {Float.sin ({Float.'/' (2.0 * 3.1415926535 * F * {Int.toFloat Y}) 44100.0})}
 			Samples = {List.append Samples A}
+			{Browse Samples}
 		     end
 		  else
 		     Hauteur = ~8.0 + (({Int.toFloat H.octave} - 4.0) * 12.0)
@@ -918,11 +919,11 @@ local
 		     Samples = {List.append Samples A}
 		  end
 	       end
-	    else
-	       {Browse H}
 	    end
 	 end
-	 Samples
+	 if Samples then
+	    Samples
+	 end
       end
    end
    
@@ -986,8 +987,8 @@ local
 in
    
    %Start = {Time}
-   %{Browse {Mix PartitionToTimedList Music}}
-   %{Browse {Echantillon [c c note(name:c octave:4 sharp:false duration:1.0 instrument:none) c]}}
+   {Browse {Mix PartitionToTimedList Music}}
+   {Browse {Echantillon [note(name:c octave:4 sharp:false duration:1.0 instrument:none)]}}
 
    % Uncomment next line to run your tests.
    % {Test Mix PartitionToTimedList}
