@@ -807,7 +807,7 @@ local
 	    case H
 	    of silence(duration:Duration) then
 	       D = H.duration * 44100.0
-	       for Y in 1..D;1.0 do
+	       for Y in 1.0..D;1.0 do
 		  Samples = {List.append 0}
 	       end
 	    [] note(name:Name octave:Octave sharp:Sharp duration:Duration instrument:Instrument) then
@@ -817,7 +817,7 @@ local
 		     F = {Number.pow 2.0 {Float.'/' Hauteur 12.0}} * 4410.0
 		     D = H.duration * 44100.0
 		     for Y in 1.0..D;1.0 do
-			A = 0.5 * {Float.sin ({Float.'/' (2.0 * 3.1415926535 * F * Y) 44100})}
+			A = 0.5 * {Float.sin ({Float.'/' (2.0 * 3.1415926535 * F * Y) 44100.0})}
 			Samples = {List.append Samples A}
 		     end
 		  else
@@ -918,6 +918,8 @@ local
 		     Samples = {List.append Samples A}
 		  end
 	       end
+	    else
+	       {Browse H}
 	    end
 	 end
 	 Samples
@@ -979,10 +981,13 @@ local
 
    %Music = {Project.load 'joy.dj.oz'}
    Music = [samples([0.5 0.6 0.2]) partition([c c b d])]
+   %Truc = [c c note(name:c octave:4 sharp:false duration:1.0 instrument:none) note(name:c octave:4 sharp:false duration:1.0 instrument:none) c c]
    %Start
 in
+   
    %Start = {Time}
-   {Browse {Mix PartitionToTimedList Music}}
+   %{Browse {Mix PartitionToTimedList Music}}
+   %{Browse {Echantillon [c c note(name:c octave:4 sharp:false duration:1.0 instrument:none) c]}}
 
    % Uncomment next line to run your tests.
    % {Test Mix PartitionToTimedList}
