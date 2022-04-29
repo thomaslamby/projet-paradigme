@@ -696,51 +696,51 @@ local
 	 end
       end
    end
-%Cette fonction Multiplie une liste par un facteur
-
-   fun {MultiplyList Factor EchantillonList}
-      case EchantillonList
-      of H|T then
-	 H * Factor|{MultiplyList Factor T}
-      else
-	 nil
-      end
-   end
 
 %Cette fonction additionne deux listes
-
    fun {AddList L1 L2}
       case L1
       of H1|T1 then
 	 case L2
 	 of H2|T2 then
-	    H1 + H2|{AddList L1 L2}
-	 else
+	    (H1 + H2)|{AddList T1 T2}
+	 [] nil then
 	    H1|T1
 	 end
-      else
+      [] nil then
 	 case L2
 	 of H2|T2 then
 	    H2|T2
-	 else
+	 [] nil then
 	    nil
 	 end
       end
    end
-	 
-%Cette fonction additione les echantillons des musiques de la liste Musicwithintensifies apres les avoir multiplier par leur facteur.
 
-   fun {Merge P2T Musicwithintensifies}
-      case Musicwithintensifies
+%Cette fonction multiplie les entrées d'une liste par un facteur
+   fun {MultiplyList Factor EchantillonList}
+      case EchantillonList
       of H|T then
-	 case H
-	 of Factor#Music then
-	    {AddList {MultiplyList Factor {Mix2 P2T Music}} {Merge P2T T}}
-	 end
+	 (H * Factor)|{MultiplyList Factor T}
       [] nil then
 	 nil
       end
    end
+   
+%Cette fonction additione les echantillons des musiques de la liste Musicwithintensifies apres les avoir multiplier par leur facteur.
+
+   fun {Merge P2T Musicwithintensifies}
+	 case Musicwithintensifies
+	 of H|T then
+	    case H
+	    of Factor#Music then
+	       {AddList {MultiplyList Factor {Mix2 P2T Music}} {Merge P2T T}}
+	    end
+	 [] nil then
+	    nil
+	 end
+      end
+   
    
 %Cette fonction repete une musique un nombre Amount de fois
 
@@ -800,43 +800,88 @@ local
 %Cette fonction introduit un echo avec un delais de Delay de secondes et intensifier par un nombre decay.
 
    fun {Echo Delay Decay Samples}
-      local AddSilence X
+      local AddSilence X Y Z
 	 AddSilence =
 	 fun {$ Amount}
 	    if Amount > 0.0 then
-	       0.0|{AddSilence Amount+(~1)}
+	       0.0|{AddSilence Amount+(~1.0)}
 	    else
 	       nil
 	    end
 	 end
-	 
       in
 	 X = Delay * 44100.0
-	 {AddList {Concat {Addsilence X} {MultiplyList Decay Samples}} Samples}
+	 Y = {MultiplyList Decay Samples}
+	 Z = {Concat {AddSilence X} Y}
+	 {AddList Z Samples}|nil
       end
    end
 
 %Cette fonction creer un fondu au debut et a la fin d'une musique d'une duree respective de start et finish secondes
    fun{Fade Start Out Samples}
-      nil
+      local X Y A B FadeStartOut C D E F
+	 FadeStartOut =
+	 fun {$ X Y Depart Samples}
+	    case Samples
+	    of H|T then
+	       if X > 0.0 then
+		  (Depart * Y)|{FadeStartOut X+(~1.0) Y (Depart+1.0) T}
+	       else
+		  Samples
+	       end
+	    end
+	 end
+      in
+	 X = Start * 44100.0
+	 Y = {Float.'/' 1.0 X}
+	 A = Out * 44100.0
+	 B = {Float.'/' 1.0 A}
+	 C = {FadeStartOut X Y 0.0 Samples}
+	 {List.reverse C D}
+	 E = {FadeStartOut A B 0.0 D}
+	 {List.reverse E}
+      end
    end
 
 %Cette fonction recupere la partie de la musique qui se trouve entre Start et Finish secondes, si cette intervalle est plus grand que la musique, celle ci est completer par du silence
    fun {Cut Start Finish Samples}
-      local X Y Z A
-      in
-	 A = {IntToFloat {List.length Samples}}
-	 X = Start * 44100.0
-	 Y = (Finish * 44100.0) + X
-	 if {List.length Samples} > Y then
-	    Samples = {List.drop Samples X~1.0}
-	    {List.take Samples Y}
-	 else
-	    for I in (Y + (~A))..0;~1 do
-	       Samples = {List.append Samples 0}
+      local X Y Z Cut2 Cut3
+	 Cut2 =
+	 fun {$ X Samples}
+	    case Samples
+	    of H|T then
+	       if X > 0.0 then
+		  {Cut2 X+(~1.0) T}
+	       else
+		  H|T
+	       end
+	    else
+	       nil
 	    end
-	    Samples
 	 end
+	 
+	 Cut3 =
+	 fun {$ Z Y}
+	    case Y
+	    of H|T then
+	       if Z > 0.0 then
+		  H|{Cut3 Z+(~1.0) T}
+	       else
+		  nil
+	       end
+	    else
+	       if Z > 0.0 then
+		  0.0|{Cut3 Z+(~1.0) nil}
+	       else
+		  nil
+	       end
+	    end
+	 end	 
+      in
+	 X = Start * 44100.0
+	 Y = {Cut2 X Samples}
+	 Z = (Finish*44100.0)+(~X)
+	 {Cut3 Z Y}
       end
    end
    
@@ -847,6 +892,8 @@ local
 	 H|{Concat T L2}
       [] nil then
 	 L2
+      else
+	 L1|L2
       end
    end	 
 	 
@@ -861,7 +908,7 @@ local
 	    case H
 	    of silence(duration:Duration) then
 	       D = H.duration * 44100.0
-	       {Concat {Echantillon2 D 0 Depart} {Echantillon T D}}
+	       {Concat {Echantillon2 D 0 Depart} {Echantillon T 0.0}}
 	    [] nil then
 	       nil
 	    [] note(name:Name octave:Octave sharp:Sharp duration:Duration instrument:Instrument) then
@@ -1005,12 +1052,13 @@ local
 	       {Concat {Clip H.low H.high {Mix2 P2T H.1}} {Mix2 P2T T}}
 
 	    [] echo(delay:Duration decay:Factor Music) then
-	       {Concat {Echo H.delay H.decay {Mix2 P2T H.1}} {Mix2 P2T T}}
+	       X = {Echo H.delay H.decay {Mix2 P2T H.1}}
+	       {Concat X {Mix2 P2T T}}
 
-	    [] fade(start:Duration out:Duration Music) then
+	    [] fade(start:Duration out:Duration2 Music) then
 	       {Concat {Fade H.start H.out {Mix2 P2T H.1}} {Mix2 P2T T}}
 
-	    [] cut(start:Duration finish:Duration Music) then
+	    [] cut(start:Duration finish:Duration2 Music) then
 	       {Concat {Cut H.start H.finish {Mix2 P2T H.1}} {Mix2 P2T T}}
 	    end
 	 end
@@ -1021,9 +1069,9 @@ local
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
    %Music = {Project.load 'joy.dj.oz'}
-   Music = [echo(delay:0.5 decay:0.5 [samples([0.1 0.2 0.3])]
-   %Truc = [loop(duration:2.0 [samples([0.1 0.2 0.5])])]
-   %Truc = [c c note(name:c octave:4 sharp:false duration:1.0 instrument:none) note(name:c octave:4 sharp:false duration:1.0 instrument:none) c c]
+   Music = [cut(start:1.0 finish:8.0 [partition(Truc)])]
+   %Music = [merge([0.5#Truc 0.2#Truc])]
+   Truc = [c c note(name:c octave:4 sharp:false duration:1.0 instrument:none) note(name:c octave:4 sharp:false duration:1.0 instrument:none) c c]
    %Start
 in
    
@@ -1047,5 +1095,3 @@ in
    %{Browse {IntToFloat {Time}-Start} / 1000.0}
    
 end
-
-
