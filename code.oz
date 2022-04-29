@@ -707,6 +707,27 @@ local
       end
    end
 
+%Cette fonction additionne deux listes
+
+   fun {AddList L1 L2}
+      case L1
+      of H1|T1 then
+	 case L2
+	 of H2|T2 then
+	    H1 + H2|{AddList L1 L2}
+	 else
+	    H1|T1
+	 end
+      else
+	 case L2
+	 of H2|T2 then
+	    H2|T2
+	 else
+	    nil
+	 end
+      end
+   end
+	 
 %Cette fonction additione les echantillons des musiques de la liste Musicwithintensifies apres les avoir multiplier par leur facteur.
 
    fun {Merge P2T Musicwithintensifies}
@@ -778,11 +799,11 @@ local
 
 %Cette fonction introduit un echo avec un delais de Delay de secondes et intensifier par un nombre decay.
 
-   fun {Echo P2T Delay Decay Samples}
+   fun {Echo Delay Decay Samples}
       local AddSilence X
 	 AddSilence =
 	 fun {$ Amount}
-	    if Amount > 0 then
+	    if Amount > 0.0 then
 	       0.0|{AddSilence Amount+(~1)}
 	    else
 	       nil
@@ -791,7 +812,7 @@ local
 	 
       in
 	 X = Delay * 44100.0
-	 {Concat {Addsilence X} {MultiplyList Decay Samples}}
+	 {AddList {Concat {Addsilence X} {MultiplyList Decay Samples}} Samples}
       end
    end
 
@@ -984,7 +1005,7 @@ local
 	       {Concat {Clip H.low H.high {Mix2 P2T H.1}} {Mix2 P2T T}}
 
 	    [] echo(delay:Duration decay:Factor Music) then
-	       {Concat {Echo P2T H.delay H.decay {Mix2 P2T H.1}} {Mix2 P2T T}}
+	       {Concat {Echo H.delay H.decay {Mix2 P2T H.1}} {Mix2 P2T T}}
 
 	    [] fade(start:Duration out:Duration Music) then
 	       {Concat {Fade H.start H.out {Mix2 P2T H.1}} {Mix2 P2T T}}
@@ -1000,7 +1021,7 @@ local
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
    %Music = {Project.load 'joy.dj.oz'}
-   Music = [samples([0.1 0.2 0.3])]
+   Music = [echo(delay:0.5 decay:0.5 [samples([0.1 0.2 0.3])]
    %Truc = [loop(duration:2.0 [samples([0.1 0.2 0.5])])]
    %Truc = [c c note(name:c octave:4 sharp:false duration:1.0 instrument:none) note(name:c octave:4 sharp:false duration:1.0 instrument:none) c c]
    %Start
