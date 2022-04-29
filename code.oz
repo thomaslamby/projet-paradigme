@@ -696,79 +696,102 @@ local
 	 end
       end
    end
-   
+%Cette fonction Multiplie une liste par un facteur
+
+   fun {MultiplyList Factor EchantillonList}
+      case EchantillonList
+      of H|T then
+	 H * Factor|{MultiplyList Factor T}
+      else
+	 nil
+      end
+   end
+
 %Cette fonction additione les echantillons des musiques de la liste Musicwithintensifies apres les avoir multiplier par leur facteur.
 
    fun {Merge P2T Musicwithintensifies}
-      %for all -> factor * Mix2
-      %addition toute les listes.
       case Musicwithintensifies
       of H|T then
 	 case H
-	 of Facteur#Music then
-	    Facteur * {Mix2 P2T Music}|{Merge P2T T}
+	 of Factor#Music then
+	    {AddList {MultiplyList Factor {Mix2 P2T Music}} {Merge P2T T}}
 	 end
+      [] nil then
+	 nil
       end
    end
    
 %Cette fonction repete une musique un nombre Amount de fois
 
    fun {Repeat Amount Samples}
-      for I in 1..Amount do
-	 {List.append Samples Samples}
+      if Amount > 0 then
+	 {Concat Samples {Repeat Amount+(~1) Samples}}
+      else
+	 nil
       end
-      Samples
    end
    
 %Cette fonction boucle une musique pendant Duration secondes
 
    fun {Loop Duration Samples}
-      local X Y Z A
+      local X Y Z A B
       in
 	 X = {List.length Samples}
 	 Y = Duration * 44100.0
-	 Z = {Int.'div' Y X}
-	 A = {Int.'mod' Y X}
+	 Z = {Int.'div' {Float.toInt Y} X}
+	 A = {Int.'mod' {Float.toInt Y} X}
 	 if Z > 0 then
-	    for I in 1..Z do
-	       Samples = {List.append Samples Samples}
+	    if A > 0 then
+	       {List.take Samples A B}
+	       {Concat {Repeat Z Samples} B}
+	    else
+	       {Repeat Z Samples}
+	    end
+	 else
+	    if A > 0 then
+	       {List.take Samples A B}
+	       B
+	    else
+	       nil
 	    end
 	 end
-	 if A > 0 then
-	    Samples = {List.append Samples {List.take A}}
-	 end
-	 Samples
       end
    end
    
 %Cette fonction contraint les echantillons a une valeur plancher et plafond
 
    fun {Clip Low High Samples}
-      local X
-      in
-	 X = {List.length Samples}
-	 for I in 1..X do
-	    if Samples.I < Low then
-	       Samples.I = Low
-	    elseif Samples.I > High then
-	       Samples.I = High
-	    end
+      case Samples
+      of H|T then
+	 if H < Low then
+	    Low|{Clip Low High T}
+	 elseif H > High then
+	    High|{Clip Low High T}
+	 else
+	    H|{Clip Low High T}
 	 end
-	 Samples
+      else
+	 nil
       end
    end
+      
 
 %Cette fonction introduit un echo avec un delais de Delay de secondes et intensifier par un nombre decay.
 
    fun {Echo P2T Delay Decay Samples}
-      local Silence X
+      local AddSilence X
+	 AddSilence =
+	 fun {$ Amount}
+	    if Amount > 0 then
+	       0.0|{AddSilence Amount+(~1)}
+	    else
+	       nil
+	    end
+	 end
+	 
       in
 	 X = Delay * 44100.0
-	 for I in 1..X do
-	    Silence = {List.append Silence 0}
-	 end
-	 Silence = {List.append Silence Samples}
-	 {Merge P2T 1.0#Samples|Decay#Silence}
+	 {Concat {Addsilence X} {MultiplyList Decay Samples}}
       end
    end
 
@@ -806,178 +829,169 @@ local
       end
    end	 
 	 
-%Cette fonction calcule la liste d'echantillons d'une flat partition.
-
-%formule pour convertir un temps en nombre d'echantillon : temps en sec multiplier par 44100
-   fun {Echantillon FlatPartition}
-      local Hauteur F D A Samples
+%Cette fonction calcule la %formule pour convertir le temps de la note en nombre d'echantillon ainsi que la fr�quence
+   fun {Echantillon FlatPartition Depart}
+      local Hauteur F D A 
       in
-	 for H in FlatPartition do
+	 case FlatPartition
+	 of nil then
+	    nil
+	 [] H|T then
 	    case H
 	    of silence(duration:Duration) then
 	       D = H.duration * 44100.0
-	       for Y in 1.0..D;1.0 do
-		  Samples = {List.append Samples 0}
-	       end
+	       {Concat {Echantillon2 D 0 Depart} {Echantillon T D}}
+	    [] nil then
+	       nil
 	    [] note(name:Name octave:Octave sharp:Sharp duration:Duration instrument:Instrument) then
 	       if H.name == c then
 		  if H.sharp == false then
 		     Hauteur = (~9.0) + (({Int.toFloat H.octave} - 4.0) * 12.0)
 		     F = {Number.pow 2.0 {Float.'/' Hauteur 12.0}} * 4410.0
-		     D = {Float.toInt (H.duration * 44100.0)}
-		     for Y in 1..D do
-			A = 0.5 * {Float.sin ({Float.'/' (2.0 * 3.1415926535 * F * {Int.toFloat Y}) 44100.0})}
-			Samples = {List.append Samples A}
-		     end
+		     D = (H.duration * 44100.0)
+		     {Concat {Echantillon2 D F Depart} {Echantillon T 0.0}}
 		  else
 		     Hauteur = (~8.0) + (({Int.toFloat H.octave} - 4.0) * 12.0)
 		     F = {Number.pow 2.0 {Float.'/' Hauteur 12.0}} * 4410.0
-		     D = {Float.toInt (H.duration * 44100.0)}
-		     for Y in 1..D do
-			A = 0.5 * {Float.sin ({Float.'/' (2.0 * 3.1415926535 * F * {Int.toFloat Y}) 44100.0})}
-			Samples = {List.append Samples A}
-		     end
+		     D = (H.duration * 44100.0)
+		     {Concat {Echantillon2 D F Depart} {Echantillon T 0.0}}
 		  end
 	       elseif H.name == d then
 		  if H.sharp ==false then
 		     Hauteur = (~7.0) + (({Int.toFloat H.octave} - 4.0) * 12.0)
 		     F = {Number.pow 2.0 {Float.'/' Hauteur 12.0}} * 4410.0
-		     D = {Float.toInt (H.duration * 44100.0)}
-		     for Y in 1..D do
-			A = 0.5 * {Float.sin ({Float.'/' (2.0 * 3.1415926535 * F * {Int.toFloat Y}) 44100.0})}
-			Samples = {List.append Samples A}
-		     end
+		     D = (H.duration * 44100.0)
+		     {Concat {Echantillon2 D F Depart} {Echantillon T 0.0}}
 		  else
 		     Hauteur = (~6.0) + (({Int.toFloat H.octave} - 4.0) * 12.0)
 		     F = {Number.pow 2.0 {Float.'/' Hauteur 12.0}} * 4410.0
-		     D = {Float.toInt (H.duration * 44100.0)}
-		     for Y in 1..D do
-			A = 0.5 * {Float.sin ({Float.'/' (2.0 * 3.1415926535 * F * {Int.toFloat Y}) 44100.0})}
-			Samples = {List.append Samples A}
-		     end
+		     D = (H.duration * 44100.0)
+		     {Concat {Echantillon2 D F Depart} {Echantillon T 0.0}}
+
 		  end
 	       elseif H.name == e then
 		     Hauteur = (~5.0) + (({Int.toFloat H.octave} - 4.0) * 12.0)
 		     F = {Number.pow 2.0 {Float.'/' Hauteur 12.0}} * 4410.0
-		     D = {Float.toInt (H.duration * 44100.0)}
-		     for Y in 1..D do
-			A = 0.5 * {Float.sin ({Float.'/' (2.0 * 3.1415926535 * F * {Int.toFloat Y}) 44100.0})}
-			Samples = {List.append Samples A}
-		     end
+		     D = (H.duration * 44100.0)
+		     {Concat {Echantillon2 D F Depart} {Echantillon T 0.0}}
+
 	       elseif H.name == f then
 		  if H.sharp == false then
 		     Hauteur = (~4.0) + (({Int.toFloat H.octave} - 4.0) * 12.0)
 		     F = {Number.pow 2.0 {Float.'/' Hauteur 12.0}} * 4410.0
-		     D = {Float.toInt (H.duration * 44100.0)}
-		     for Y in 1..D do
-			A = 0.5 * {Float.sin ({Float.'/' (2.0 * 3.1415926535 * F * {Int.toFloat Y}) 44100.0})}
-			Samples = {List.append Samples A}
-		     end
+		     D = (H.duration * 44100.0)
+		     {Concat {Echantillon2 D F Depart} {Echantillon T 0.0}}
+
 		  else
 		     Hauteur = (~3.0) + (({Int.toFloat H.octave} - 4.0) * 12.0)
 		     F = {Number.pow 2.0 {Float.'/' Hauteur 12.0}} * 4410.0
-		     D = {Float.toInt (H.duration * 44100.0)}
-		     for Y in 1..D do
-			A = 0.5 * {Float.sin ({Float.'/' (2.0 * 3.1415926535 * F * {Int.toFloat Y}) 44100.0})}
-			Samples = {List.append Samples A}
-		     end
+		     D = (H.duration * 44100.0)
+		     {Concat {Echantillon2 D F Depart} {Echantillon T 0.0}}
+
 		  end
 	       elseif H.name == g then
 		  if H.sharp == false then
 		     Hauteur = (~2.0) + (({Int.toFloat H.octave} - 4.0) * 12.0)
 		     F = {Number.pow 2.0 {Float.'/' Hauteur 12.0}} * 4410.0
-		     D = {Float.toInt (H.duration * 44100.0)}
-		     for Y in 1..D do
-			A = 0.5 * {Float.sin ({Float.'/' (2.0 * 3.1415926535 * F * {Int.toFloat Y}) 44100.0})}
-			Samples = {List.append Samples A}
-		     end
+		     D = (H.duration * 44100.0)
+		     {Concat {Echantillon2 D F Depart} {Echantillon T 0.0}}
 		  else
 		     Hauteur = (~1.0) + (({Int.toFloat H.octave} - 4.0) * 12.0)
 		     F = {Number.pow 2.0 {Float.'/' Hauteur 12.0}} * 4410.0
-		     D = {Float.toInt (H.duration * 44100.0)}
-		     for Y in 1..D do
-			A = 0.5 * {Float.sin ({Float.'/' (2.0 * 3.1415926535 * F * {Int.toFloat Y}) 44100.0})}
-			Samples = {List.append Samples A}
-		     end
+		     D = (H.duration * 44100.0)
+		     {Concat {Echantillon2 D F Depart} {Echantillon T 0.0}}
 		  end
 	       elseif H.name == a then
 		  if H.sharp == false then
 		     Hauteur = 0.0 + (({Int.toFloat H.octave} - 4.0) * 12.0)
 		     F = {Number.pow 2.0 {Float.'/' Hauteur 12.0}} * 4410.0
-		     D = {Float.toInt (H.duration * 44100.0)}
-		     for Y in 1..D do
-			A = 0.5 * {Float.sin ({Float.'/' (2.0 * 3.1415926535 * F * {Int.toFloat Y}) 44100.0})}
-			Samples = {List.append Samples A}
-		     end
+		     D = (H.duration * 44100.0)
+		     {Concat {Echantillon2 D F Depart} {Echantillon T 0.0}}
+
 		  else
 		     Hauteur = 1.0 + (({Int.toFloat H.octave} - 4.0) * 12.0)
 		     F = {Number.pow 2.0 {Float.'/' Hauteur 12.0}} * 4410.0
-		     D = {Float.toInt (H.duration * 44100.0)}
-		     for Y in 1..D do
-			A = 0.5 * {Float.sin ({Float.'/' (2.0 * 3.1415926535 * F * {Int.toFloat Y}) 44100.0})}
-			Samples = {List.append Samples A}
-		     end
+		     D = (H.duration * 44100.0)
+		     {Concat {Echantillon2 D F Depart} {Echantillon T 0.0}}
+
 		  end
 	       elseif H.name == b then
-		     Hauteur = 2.0 + (({Int.toFloat H.octave} - 4.0) * 12.0)
-		     F = {Number.pow 2.0 {Float.'/' Hauteur 12.0}} * 4410.0
-		     D = {Float.toInt (H.duration * 44100.0)}
-		     for Y in 1..D do
-			A = 0.5 * {Float.sin ({Float.'/' (2.0 * 3.1415926535 * F * {Int.toFloat Y}) 44100.0})}
-			Samples = {List.append Samples A}
-		     end
+		  Hauteur = 2.0 + (({Int.toFloat H.octave} - 4.0) * 12.0)
+		  F = {Number.pow 2.0 {Float.'/' Hauteur 12.0}} * 4410.0
+		  D = (H.duration * 44100.0)
+		     {Concat {Echantillon2 D F Depart} {Echantillon T 0.0}}
 	       end
 	    end
 	 end
       end
    end
    
+%Cette fonction est la suite d'echantillon et calcule la valeur des echantillons pour une note
+   fun {Echantillon2 D F Depart}
+      local
+	 A
+      in
+	 if D == 0.0 then
+	    nil
+	 else
+	    if F == 0.0 then
+	       0.0|{Echantillon2 D+(~1.0) F Depart+1.0}
+	    else
+	       A = 0.5 * {Float.sin ({Float.'/' (2.0 * 3.1415926535 * F * Depart) 44100.0})}
+	       A|{Echantillon2 D+(~1.0) F Depart+1.0}
+	    end
+	 end
+      end
+   end
+
 %Cette fonction prend une musique en entree et retourne une liste d'echantillon.(Mix2 est le pour permettre la recursion)
 
    fun {Mix P2T Music}
       {Mix2 P2T Music}
-   end
-
-%idem  
+   end  
 
    fun {Mix2 P2T Music}
-      case Music
-      of nil then
-	 nil
-      [] H|T then
-	 case H
-	 of samples(Sample) then
-	    H.1|{Mix2 P2T T}
+      local X
+      in
+	 case Music
+	 of nil then
+	    nil
+	 [] H|T then
+	    case H
+	    of samples(Samples) then
+	       {Concat H.1 {Mix2 P2T T}}
 
-	 [] partition(Partition) then
-	    {Echantillon {P2T H.1}}|{Mix2 P2T T}
+	    [] partition(Partition) then
+	       {Concat {Echantillon {P2T H.1} 0.0} {Mix2 P2T T}}
 	    
-	 [] wave(Filename) then
-	    {Project.load H.1}|{Mix2 P2T T}
+	    [] wave(Filename) then
+	       {Concat {Project.load H.1} {Mix2 P2T T}}
 	    
-	 [] merge(Musicwithintensifies) then
-	    {Merge P2T H.1}|{Mix2 P2T T}
+	    [] merge(Musicwithintensifies) then
+	       {Concat {Merge P2T H.1} {Mix2 P2T T}}
 
-	 [] reverse(Music) then
-	    {List.reverse {Mix2 P2T H.1}}|{Mix2 P2T T}
+	    [] reverse(Music) then
+	       {List.reverse {Mix2 P2T H.1} X}
+	       {Concat X {Mix2 P2T T}}
 
-	 [] repeat(amount:Amount Music) then
-	    {Repeat H.amount {Mix2 P2T H.1}}|{Mix2 P2T T}
+	    [] repeat(amount:Amount Music) then
+	       {Concat {Repeat H.amount {Mix2 P2T H.1}} {Mix2 P2T T}}
 
-	 [] loop(duration:Duration Music) then
-	    {Loop H.duration {Mix2 P2T H.1}}|{Mix2 P2T T}
+	    [] loop(duration:Duration Music) then
+	       {Concat {Loop H.duration {Mix2 P2T H.1}} {Mix2 P2T T}}
 
-	 [] clip(low:Sample high:Sample Music) then
-	    {Clip H.low H.high {Mix2 P2T H.1}}|{Mix2 P2T T}
+	    [] clip(low:Float high:Float2 Music) then
+	       {Concat {Clip H.low H.high {Mix2 P2T H.1}} {Mix2 P2T T}}
 
-	 [] echo(delay:Duration decay:Factor Music) then
-	    {Echo P2T H.delay H.decay {Mix2 P2T H.1}}|{Mix2 P2T T}
+	    [] echo(delay:Duration decay:Factor Music) then
+	       {Concat {Echo P2T H.delay H.decay {Mix2 P2T H.1}} {Mix2 P2T T}}
 
-	 [] fade(start:Duration out:Duration Music) then
-	    {Fade H.start H.out {Mix2 P2T H.1}}|{Mix2 P2T T}
+	    [] fade(start:Duration out:Duration Music) then
+	       {Concat {Fade H.start H.out {Mix2 P2T H.1}} {Mix2 P2T T}}
 
-	 [] cut(start:Duration finish:Duration Music) then
-	    {Cut H.start H.finish {Mix2 P2T H.1}}|{Mix2 P2T T}
+	    [] cut(start:Duration finish:Duration Music) then
+	       {Concat {Cut H.start H.finish {Mix2 P2T H.1}} {Mix2 P2T T}}
+	    end
 	 end
       end	     
     %  {Project.readFile 'wave\animals\cow.wav'}
@@ -986,14 +1000,16 @@ local
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
    %Music = {Project.load 'joy.dj.oz'}
-   Music = [samples([0.5 0.6 0.2]) partition([c c])]
+   Music = [samples([0.1 0.2 0.3])]
+   %Truc = [loop(duration:2.0 [samples([0.1 0.2 0.5])])]
    %Truc = [c c note(name:c octave:4 sharp:false duration:1.0 instrument:none) note(name:c octave:4 sharp:false duration:1.0 instrument:none) c c]
    %Start
 in
    
    %Start = {Time}
-   %{Browse {Mix PartitionToTimedList Music}}
-   {Browse {Echantillon [note(name:c octave:4 sharp:false duration:1.0 instrument:none) note(name:c octave:4 sharp:false duration:1.0 instrument:none)]}}
+   {Browse {Mix PartitionToTimedList Music}}
+   %{Browse Truc.1}
+   %{Browse Music.1}
 
    % Uncomment next line to run your tests.
    % {Test Mix PartitionToTimedList}
