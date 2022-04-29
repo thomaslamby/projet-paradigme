@@ -1,7 +1,8 @@
 local
    %Auteur : Thomas Lamby     NOMA: 27312000        
    % See project statement for API details.
-   [Project] = {Link ['Project2022.ozf']}
+   CWD = '\OneDrive\Bureau\Projetoz
+   [Project] = {Link [CWD#'Project2022.ozf']}
    %Time = {Link ['x-oz:\\boot\Time']}.1.getReferenceTime
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1062,34 +1063,20 @@ local
 	       {Concat {Cut H.start H.finish {Mix2 P2T H.1}} {Mix2 P2T T}}
 	    end
 	 end
-      end	     
-    %  {Project.readFile 'wave\animals\cow.wav'}
+      end
+      %{Project.readFile 'wave\animals\cow.wav'}
    end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-   %Music = {Project.load 'joy.dj.oz'}
-   Music = [cut(start:1.0 finish:8.0 [partition(Truc)])]
-   %Music = [merge([0.5#Truc 0.2#Truc])]
-   Truc = [c c note(name:c octave:4 sharp:false duration:1.0 instrument:none) note(name:c octave:4 sharp:false duration:1.0 instrument:none) c c]
+   
+   Music = {Project.load}
    %Start
 in
    
    %Start = {Time}
-   {Browse {Mix PartitionToTimedList Music}}
-   %{Browse Truc.1}
-   %{Browse Music.1}
-
-   % Uncomment next line to run your tests.
-   % {Test Mix PartitionToTimedList}
-
-   % Add variables to this list to avoid "local variable used only once"
-   % warnings.
-   %{ForAll [NoteToExtended Music] Wait}
    
    % Calls your code, prints the result and outputs the result to `out.wav`.
-   % You don't need to modify this.
-   %{Browse {Project.run Mix PartitionToTimedList Music 'out.wav'}}
+   {Browse {Project.run Mix PartitionToTimedList Music 'out.wav'}}
    
    % Shows the total time to run your code.
    %{Browse {IntToFloat {Time}-Start} / 1000.0}
