@@ -1,13 +1,13 @@
 local
    %Auteur : Thomas Lamby     NOMA: 27312000        
    % See project statement for API details.
-   CWD = '\OneDrive\Bureau\Projetoz
+   CWD = ""
    [Project] = {Link [CWD#'Project2022.ozf']}
-   %Time = {Link ['x-oz:\\boot\Time']}.1.getReferenceTime
+   %Time = {Link ['x-oz://boot/Time']}.1.getReferenceTime
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-   % Translate a note to the extended notation.
+    % Traduit une note dans sa notation �tendue.
    fun {NoteToExtended Note}
       case Note
       of Name#Octave then
@@ -18,18 +18,24 @@ local
 	 case {AtomToString Atom}
 	 of [_] then
 	    note(name:Atom octave:4 sharp:false duration:1.0 instrument:none)
+	
+	    
 	 [] [N O] then
 	    note(name:{StringToAtom [N]}
 		 octave:{StringToInt [O]}
 		 sharp:false
 		 duration:1.0
-		 instrument: none)
+		 instrument:none)
+	 else
+	    nil
 	 end
+      else
+	 nil
       end
    end
 
    % Cette fonction fixe la duree de la partition au nombre de secondes indique.
-   fun {Duration Seconds Partition T}
+   fun {Duration Time Partition T}
       local Sum Factor
 	 Sum =
 	 fun {$ Partition N}
@@ -40,20 +46,27 @@ local
 	       case H
 	       of note(name:Name octave:Octave sharp:Sharp duration:Duration instrument:Instrument) then
 		  {Sum T N+H.duration}
-	       [] silence(duration:Duration) then
+	       [] silence(duration:Time) then
 		  {Sum T N+H.duration}
+	       [] nil then
+		  {Sum T N}
 	       [] H2|T2 then
-		  {Sum T N+H2.duration}
+		  case H2
+		  of nil then
+		     {Sum T N}
+		  else
+		     {Sum T N+H2.duration}
+		  end
 	       end
 	    end
 	 end
       in
-	 Factor = {Float.'/' Seconds {Sum Partition 0.0}}
+	 Factor = {Float.'/' Time {Sum Partition 0.0}}
 	 {Stretch Factor Partition T}
       end
    end
    
-   % Cette fonction etire la duree de la partition par le facteur indique
+   % Cette fonction etire la duree de la partition par le facteur indique.
    fun {Stretch Factor Partition V}
       local X in
 	 case Partition
@@ -67,26 +80,26 @@ local
 	    [] silence(duration:Duration) then
 	       X = silence(duration:H.duration*Factor)
 	       X|{Stretch Factor T V}
+	    [] nil then
+	       nil|{Stretch Factor T V}
 	    [] H2|T2 then
 	       case H2
-	       of note(name:Name octave:Octave sharp:Sharp duration:Duration instrument:Instrument) then
-		  X = note(name:H.name octave:H.octave sharp:H.sharp duration:H.duration*Factor intrument:Instrument)
-		  X|{Stretch Factor T2 nil}|{Stretch Factor T V}
-	       [] silence(duration:Duration) then %peut etre pas necessaire en pratique mais grammaire
-		  X = silence(duration:H.duration*Factor)
-		  X|{Stretch Factor T2 nil}|{Stretch Factor T V}
+	       of nil then
+		  nil|{Stretch Factor T V}
+	       else
+		  {Stretch Factor H nil}|{Stretch Factor T V}
 	       end
 	    end
 	 end
       end
    end
    
-   % Cette fonction repete une partition comprenant la note Note un nombre Amount de fois
+   % Cette fonction repete une partition comprenant la note Note un nombre Amount de fois.
    fun {Drone Note Amount Partition}
       if Amount == 0 then
 	 {PartitionToTimedList Partition}
       else
-	 Note|{Drone Note Amount-1 Partition}
+	 Note|{Drone Note Amount+(~1) Partition}
       end
    end    
 
@@ -101,31 +114,173 @@ local
 	 of nil then
 	    {PartitionToTimedList V}
 	 [] H|T then
-	    if H.name == c then
-	       if H.sharp == false then
-		  Y = 1 + Nsemitones
-		  if Y =< 0 then
-		     Z = Y + (~1)
-		     case ReverseListNote.(~Z)
-		     of Name#s then
-			X = note(name:Name octave:H.octave+Noctave+(~1) sharp:true duration:H.duration instrument:H.instrument)
-			X|{Transpose T Nsemitones Noctave V}
+	    case H
+	    of H2|T2 then
+	       {Transpose H Nsemitones Noctave nil}|{Transpose T Nsemitones Noctave V}
+	    else
+	       if H.name == c then
+		  if H.sharp == false then
+		     Y = 1 + Nsemitones
+		     if Y =< 0 then
+			Z = Y + (~1)
+			case ReverseListNote.(~Z)
+			of Name#s then
+			   X = note(name:Name octave:H.octave+Noctave+(~1) sharp:true duration:H.duration instrument:H.instrument)
+			   X|{Transpose T Nsemitones Noctave V}
+			else
+			   X = note(name:ReverseListNote.(~Z) octave:H.octave+Noctave+(~1) sharp:false duration:H.duration instrument:H.instrument)
+			   X|{Transpose T Nsemitones Noctave V}
+			end
 		     else
-			X = note(name:ReverseListNote.(~Z) octave:H.octave+Noctave+(~1) sharp:false duration:H.duration instrument:H.instrument)
-			X|{Transpose T Nsemitones Noctave V}
+			case ListNote.Y
+			of Name#s then
+			   X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
+			   X|{Transpose T Nsemitones Noctave V}
+			else
+			   X = note(name:ListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
+			   X|{Transpose T Nsemitones Noctave V}
+			end
 		     end
 		  else
-		     case ListNote.Y
-		     of Name#s then
-			X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
-			X|{Transpose T Nsemitones Noctave V}
+		     Y = 2 + Nsemitones
+		     if Nsemitones < 0 then
+			if Y =< 0 then
+			   Z = Y + (~1)
+			   case ReverseListNote.(~Z)
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave+(~1) sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ReverseListNote.(~Z) octave:H.octave+Noctave+(~1) sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			else
+			   case ListNote.(Y)
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ReverseListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			end
 		     else
-			X = note(name:ListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
-			X|{Transpose T Nsemitones Noctave V}
+			if Y > 12 then
+			   Z = Y + (~12)
+			   case ListNote.Z
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave+1 sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ListNote.Z octave:H.octave+Noctave+1 sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			else
+			   case ListNote.Y
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			end
 		     end
 		  end
-	       else
-		  Y = 2 + Nsemitones
+	       elseif H.name == d then
+		  if H.sharp == false then
+		     Y = 3 + Nsemitones
+		     if Nsemitones < 0 then
+			if Y =< 0 then
+			   Z = Y + (~1)
+			   case ReverseListNote.(~Z)
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave+(~1) sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ReverseListNote.(~Z) octave:H.octave+Noctave+(~1) sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			else
+			   case ListNote.(Y)
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ReverseListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			end
+		     else
+			if Y > 12 then
+			   Z = Y + (~12)
+			   case ListNote.Z
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave+1 sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ListNote.Z octave:H.octave+Noctave+1 sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			else
+			   case ListNote.Y
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			end
+		     end
+		  else
+		     Y = 4 + Nsemitones
+		     if Nsemitones < 0 then
+			if Y =< 0 then
+			   Z = Y + (~1)
+			   case ReverseListNote.(~Z)
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave+(~1) sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ReverseListNote.(~Z) octave:H.octave+Noctave+(~1) sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			else
+			   case ListNote.(Y)
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ReverseListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			end
+		     else
+			if Y > 12 then
+			   Z = Y + (~12)
+			   case ListNote.Z
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave+1 sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ListNote.Z octave:H.octave+Noctave+1 sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			else
+			   case ListNote.Y
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			end
+		     end
+		  end
+	       elseif H.name == e then
+		  Y = 5 + Nsemitones
 		  if Nsemitones < 0 then
 		     if Y =< 0 then
 			Z = Y + (~1)
@@ -142,174 +297,311 @@ local
 			of Name#s then
 			   X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
 			   X|{Transpose T Nsemitones Noctave V}
-			else
+		     else
 			   X = note(name:ReverseListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
 			   X|{Transpose T Nsemitones Noctave V}
 			end
 		     end
 		  else
 		     if Y > 12 then
-			Z = Y + (~12)
-			case ListNote.Z
-			of Name#s then
-			   X = note(name:Name octave:H.octave+Noctave+1 sharp:true duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			else
-			   X = note(name:ListNote.Z octave:H.octave+Noctave+1 sharp:false duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			end
-		     else
-			case ListNote.Y
-			of Name#s then
-			   X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			else
-			   X = note(name:ListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			end
-		     end
-		  end
-	       end
-	    elseif H.name == d then
-	       if H.sharp == false then
-		  Y = 3 + Nsemitones
-		  if Nsemitones < 0 then
-		     if Y =< 0 then
-			Z = Y + (~1)
-          		case ReverseListNote.(~Z)
-			of Name#s then
-			   X = note(name:Name octave:H.octave+Noctave+(~1) sharp:true duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			else
-			   X = note(name:ReverseListNote.(~Z) octave:H.octave+Noctave+(~1) sharp:false duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			end
-		     else
-			case ListNote.(Y)
-			of Name#s then
-			   X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			else
-			   X = note(name:ReverseListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			end
-		     end
-		  else
-		     if Y > 12 then
-			Z = Y + (~12)
-			case ListNote.Z
-			of Name#s then
-			   X = note(name:Name octave:H.octave+Noctave+1 sharp:true duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			else
-			   X = note(name:ListNote.Z octave:H.octave+Noctave+1 sharp:false duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			end
-		     else
-			case ListNote.Y
-			of Name#s then
-			   X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			else
-			   X = note(name:ListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			end
-		     end
-		  end
-	       else
-		  Y = 4 + Nsemitones
-		  if Nsemitones < 0 then
-		     if Y =< 0 then
-			Z = Y + (~1)
-			case ReverseListNote.(~Z)
-			of Name#s then
-			   X = note(name:Name octave:H.octave+Noctave+(~1) sharp:true duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			else
-			   X = note(name:ReverseListNote.(~Z) octave:H.octave+Noctave+(~1) sharp:false duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			end
-		     else
-			case ListNote.(Y)
-			of Name#s then
-			   X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			else
-			   X = note(name:ReverseListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			end
-		     end
-		  else
-		     if Y > 12 then
-			Z = Y + (~12)
-			case ListNote.Z
-			of Name#s then
-			   X = note(name:Name octave:H.octave+Noctave+1 sharp:true duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			else
-			   X = note(name:ListNote.Z octave:H.octave+Noctave+1 sharp:false duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			end
-		     else
-			case ListNote.Y
-			of Name#s then
-			   X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-         			else
-			   X = note(name:ListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			end
-		     end
-		  end
-	       end
-	    elseif H.name == e then
-	       Y = 5 + Nsemitones
-	       if Nsemitones < 0 then
-		  if Y =< 0 then
-		     Z = Y + (~1)
-		     case ReverseListNote.(~Z)
-		     of Name#s then
-			X = note(name:Name octave:H.octave+Noctave+(~1) sharp:true duration:H.duration instrument:H.instrument)
-			X|{Transpose T Nsemitones Noctave V}
-           			else
-			X = note(name:ReverseListNote.(~Z) octave:H.octave+Noctave+(~1) sharp:false duration:H.duration instrument:H.instrument)
-			X|{Transpose T Nsemitones Noctave V}
-		     end
-		  else
-		     case ListNote.(Y)
-		     of Name#s then
-			X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
-			X|{Transpose T Nsemitones Noctave V}
-		     else
-			X = note(name:ReverseListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
-			X|{Transpose T Nsemitones Noctave V}
-		     end
-		  end
-	       else
-		  if Y > 12 then
 		     Z = Y + (~12)
-		     case ListNote.Z
-		     of Name#s then
-			X = note(name:Name octave:H.octave+Noctave+1 sharp:true duration:H.duration instrument:H.instrument)
-			X|{Transpose T Nsemitones Noctave V}
+			case ListNote.Z
+			of Name#s then
+			   X = note(name:Name octave:H.octave+Noctave+1 sharp:true duration:H.duration instrument:H.instrument)
+			   X|{Transpose T Nsemitones Noctave V}
+			else
+			   X = note(name:ListNote.Z octave:H.octave+Noctave+1 sharp:false duration:H.duration instrument:H.instrument)
+			   X|{Transpose T Nsemitones Noctave V}
+			end
 		     else
-			X = note(name:ListNote.Z octave:H.octave+Noctave+1 sharp:false duration:H.duration instrument:H.instrument)
-			X|{Transpose T Nsemitones Noctave V}
-		     end
-		  else
-		     case ListNote.Y
-		     of Name#s then
-			X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
-			X|{Transpose T Nsemitones Noctave V}
-		     else
-			X = note(name:ListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
-			X|{Transpose T Nsemitones Noctave V}
+			case ListNote.Y
+			of Name#s then
+			   X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
+			   X|{Transpose T Nsemitones Noctave V}
+			else
+			   X = note(name:ListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
+			   X|{Transpose T Nsemitones Noctave V}
+			end
 		     end
 		  end
-	       end
-	    elseif H.name == f then
-	       if H.sharp == false then
-		  Y = 6 + Nsemitones
+	       elseif H.name == f then
+		  if H.sharp == false then
+		     Y = 6 + Nsemitones
+		     if Nsemitones < 0 then
+			if Y =< 0 then
+			   Z = Y + (~1)
+			   case ReverseListNote.(~Z)
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave+(~1) sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ReverseListNote.(~Z) octave:H.octave+Noctave+(~1) sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			else
+			   case ListNote.(Y)
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ReverseListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			end
+		     else
+			if Y > 12 then
+			   Z = Y + (~12)
+			   case ListNote.Z
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave+1 sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ListNote.Z octave:H.octave+Noctave+1 sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			else
+			   case ListNote.Y
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			end
+		     end
+		  else
+		     Y = 7 + Nsemitones
+		     if Nsemitones < 0 then
+			if Y =< 0 then
+			   Z = Y + (~1)
+			   case ReverseListNote.(~Z)
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave+(~1) sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ReverseListNote.(~Z) octave:H.octave+Noctave+(~1) sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			else
+			   case ListNote.(Y)
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ReverseListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			end
+		     else
+			if Y > 12 then
+			   Z = Y + (~12)
+			   case ListNote.Z
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave+1 sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ListNote.Z octave:H.octave+Noctave+1 sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			else
+			   case ListNote.Y
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			end
+		     end
+		  end
+	       elseif H.name == g then
+		  if H.sharp == false then
+		     Y = 8 + Nsemitones
+		     if Nsemitones < 0 then
+			if Y =< 0 then
+			   Z = Y + (~1)
+			   case ReverseListNote.(~Z)
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave+(~1) sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ReverseListNote.(~Z) octave:H.octave+Noctave+(~1) sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			else
+			   case ListNote.(Y)
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ReverseListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			end
+		     else
+			if Y > 12 then
+			   Z = Y + (~12)
+			   case ListNote.Z
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave+1 sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ListNote.Z octave:H.octave+Noctave+1 sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			else
+			   case ListNote.Y
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			end
+		     end
+		  else
+		     Y = 9 + Nsemitones
+		     if Nsemitones < 0 then
+			if Y =< 0 then
+			   Z = Y + (~1)
+			   case ReverseListNote.(~Z)
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave+(~1) sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ReverseListNote.(~Z) octave:H.octave+Noctave+(~1) sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			else
+			   case ListNote.(Y)
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ReverseListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			end
+		     else
+			if Y > 12 then
+			   Z = Y + (~12)
+			   case ListNote.Z
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave+1 sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ListNote.Z octave:H.octave+Noctave+1 sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			else
+			   case ListNote.Y
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			end
+		     end
+		  end
+	       elseif H.name == a then
+		  if H.sharp == false then
+		     Y = 10 + Nsemitones
+		     if Nsemitones < 0 then
+			if Y =< 0 then
+			   Z = Y + (~1)
+			   case ReverseListNote.(~Z)
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave+(~1) sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ReverseListNote.(~Z) octave:H.octave+Noctave+(~1) sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			else
+			   case ListNote.(Y)
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ReverseListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			end
+		     else
+			if Y > 12 then
+			   Z = Y + (~12)
+			   case ListNote.Z
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave+1 sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ListNote.Z octave:H.octave+Noctave+1 sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			else
+			   case ListNote.Y
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			end
+		     end
+		  else
+		     Y = 11 + Nsemitones
+		     if Nsemitones < 0 then
+			if Y =< 0 then
+			   Z = Y + (~1)
+			   case ReverseListNote.(~Z)
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave+(~1) sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ReverseListNote.(~Z) octave:H.octave+Noctave+(~1) sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			else
+			   case ListNote.(Y)
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ReverseListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			end
+		     else
+			if Y > 12 then
+			   Z = Y + (~12)
+			   case ListNote.Z
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave+1 sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ListNote.Z octave:H.octave+Noctave+1 sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			else
+			   case ListNote.Y
+			   of Name#s then
+			      X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   else
+			      X = note(name:ListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
+			      X|{Transpose T Nsemitones Noctave V}
+			   end
+			end
+		     end
+		  end
+	       elseif H.name == b then
+		  Y = 12 + Nsemitones
 		  if Nsemitones < 0 then
 		     if Y =< 0 then
 			Z = Y + (~1)
@@ -351,280 +643,6 @@ local
 			   X = note(name:ListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
 			   X|{Transpose T Nsemitones Noctave V}
 			end
-		     end
-		  end
-	       else
-		  Y = 7 + Nsemitones
-		  if Nsemitones < 0 then
-		     if Y =< 0 then
-			Z = Y + (~1)
-			case ReverseListNote.(~Z)
-			of Name#s then
-			   X = note(name:Name octave:H.octave+Noctave+(~1) sharp:true duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			else
-			   X = note(name:ReverseListNote.(~Z) octave:H.octave+Noctave+(~1) sharp:false duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			end
-		     else
-			case ListNote.(Y)
-			of Name#s then
-			   X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			else
-			   X = note(name:ReverseListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			end
-		     end
-		  else
-		     if Y > 12 then
-			Z = Y + (~12)
-			case ListNote.Z
-			of Name#s then
-			   X = note(name:Name octave:H.octave+Noctave+1 sharp:true duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			else
-			   X = note(name:ListNote.Z octave:H.octave+Noctave+1 sharp:false duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			end
-		     else
-			case ListNote.Y
-			of Name#s then
-			   X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			else
-			   X = note(name:ListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			end
-		     end
-		  end
-	       end
-	    elseif H.name == g then
-	       if H.sharp == false then
-		  Y = 8 + Nsemitones
-		  if Nsemitones < 0 then
-		     if Y =< 0 then
-			Z = Y + (~1)
-			case ReverseListNote.(~Z)
-			of Name#s then
-			   X = note(name:Name octave:H.octave+Noctave+(~1) sharp:true duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			else
-			   X = note(name:ReverseListNote.(~Z) octave:H.octave+Noctave+(~1) sharp:false duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			end
-		     else
-			case ListNote.(Y)
-			of Name#s then
-			   X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			else
-			   X = note(name:ReverseListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			end
-		     end
-		  else
-		     if Y > 12 then
-			Z = Y + (~12)
-			case ListNote.Z
-			of Name#s then
-			   X = note(name:Name octave:H.octave+Noctave+1 sharp:true duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			else
-			   X = note(name:ListNote.Z octave:H.octave+Noctave+1 sharp:false duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			end
-		     else
-			case ListNote.Y
-			of Name#s then
-			   X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			else
-			   X = note(name:ListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			end
-		     end
-		  end
-	       else
-		  Y = 9 + Nsemitones
-		  if Nsemitones < 0 then
-		     if Y =< 0 then
-			Z = Y + (~1)
-			case ReverseListNote.(~Z)
-			of Name#s then
-			   X = note(name:Name octave:H.octave+Noctave+(~1) sharp:true duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			else
-			   X = note(name:ReverseListNote.(~Z) octave:H.octave+Noctave+(~1) sharp:false duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			end
-		     else
-			case ListNote.(Y)
-			of Name#s then
-			   X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			else
-			   X = note(name:ReverseListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			end
-		     end
-		  else
-		     if Y > 12 then
-			Z = Y + (~12)
-			case ListNote.Z
-			of Name#s then
-			   X = note(name:Name octave:H.octave+Noctave+1 sharp:true duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			else
-			   X = note(name:ListNote.Z octave:H.octave+Noctave+1 sharp:false duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			end
-		     else
-			case ListNote.Y
-			of Name#s then
-			   X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			else
-			   X = note(name:ListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			end
-		     end
-		  end
-	       end
-	    elseif H.name == a then
-	       if H.sharp == false then
-		  Y = 10 + Nsemitones
-		  if Nsemitones < 0 then
-		     if Y =< 0 then
-			Z = Y + (~1)
-			case ReverseListNote.(~Z)
-			of Name#s then
-			   X = note(name:Name octave:H.octave+Noctave+(~1) sharp:true duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			else
-			   X = note(name:ReverseListNote.(~Z) octave:H.octave+Noctave+(~1) sharp:false duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			end
-		     else
-			case ListNote.(Y)
-			of Name#s then
-			   X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			else
-			   X = note(name:ReverseListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			end
-		     end
-		  else
-		     if Y > 12 then
-			Z = Y + (~12)
-			case ListNote.Z
-			of Name#s then
-			   X = note(name:Name octave:H.octave+Noctave+1 sharp:true duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			else
-			   X = note(name:ListNote.Z octave:H.octave+Noctave+1 sharp:false duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			end
-		     else
-			case ListNote.Y
-			of Name#s then
-			   X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			else
-			   X = note(name:ListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			end
-		     end
-		  end
-	       else
-		  Y = 11 + Nsemitones
-		  if Nsemitones < 0 then
-		     if Y =< 0 then
-			Z = Y + (~1)
-			case ReverseListNote.(~Z)
-			of Name#s then
-			   X = note(name:Name octave:H.octave+Noctave+(~1) sharp:true duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			else
-			   X = note(name:ReverseListNote.(~Z) octave:H.octave+Noctave+(~1) sharp:false duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			end
-		     else
-			case ListNote.(Y)
-			of Name#s then
-			   X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			else
-			   X = note(name:ReverseListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			end
-		     end
-		  else
-		     if Y > 12 then
-			Z = Y + (~12)
-			case ListNote.Z
-			of Name#s then
-			   X = note(name:Name octave:H.octave+Noctave+1 sharp:true duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			else
-			   X = note(name:ListNote.Z octave:H.octave+Noctave+1 sharp:false duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			end
-		     else
-			case ListNote.Y
-			of Name#s then
-			   X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			else
-			   X = note(name:ListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
-			   X|{Transpose T Nsemitones Noctave V}
-			end
-		     end
-		  end
-	       end
-	    elseif H.name == b then
-	       Y = 12 + Nsemitones
-	       if Nsemitones < 0 then
-		  if Y =< 0 then
-		     Z = Y + (~1)
-		     case ReverseListNote.(~Z)
-		     of Name#s then
-			X = note(name:Name octave:H.octave+Noctave+(~1) sharp:true duration:H.duration instrument:H.instrument)
-			X|{Transpose T Nsemitones Noctave V}
-		     else
-			X = note(name:ReverseListNote.(~Z) octave:H.octave+Noctave+(~1) sharp:false duration:H.duration instrument:H.instrument)
-			X|{Transpose T Nsemitones Noctave V}
-		     end
-		  else
-		     case ListNote.(Y)
-		     of Name#s then
-			X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
-			X|{Transpose T Nsemitones Noctave V}
-		     else
-			X = note(name:ReverseListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
-			X|{Transpose T Nsemitones Noctave V}
-		     end
-		  end
-	       else
-		  if Y > 12 then
-		     Z = Y + (~12)
-		     case ListNote.Z
-		     of Name#s then
-			X = note(name:Name octave:H.octave+Noctave+1 sharp:true duration:H.duration instrument:H.instrument)
-			X|{Transpose T Nsemitones Noctave V}
-		     else
-			X = note(name:ListNote.Z octave:H.octave+Noctave+1 sharp:false duration:H.duration instrument:H.instrument)
-			X|{Transpose T Nsemitones Noctave V}
-		     end
-		  else
-		     case ListNote.Y
-		     of Name#s then
-			X = note(name:Name octave:H.octave+Noctave sharp:true duration:H.duration instrument:H.instrument)
-			X|{Transpose T Nsemitones Noctave V}
-		     else
-			X = note(name:ListNote.Y octave:H.octave+Noctave sharp:false duration:H.duration instrument:H.instrument)
-			X|{Transpose T Nsemitones Noctave V}
 		     end
 		  end
 	       end
@@ -643,8 +661,8 @@ local
 	 case H
 	 of Name#Octave then
 	    {NoteToExtended H}|{PartitionToTimedList T}
-	    
-	 [] duration(seconds:Duration Partition) then
+
+	 [] duration(seconds:Time Partition) then
 	    if {Int.is H.seconds} then
 	       {Duration {Int.toFloat H.seconds} {PartitionToTimedList H.1} T}
 	    else
@@ -660,29 +678,47 @@ local
 	    
 	 [] drone(note:Note amount:Amount) then
 	    if {Int.is Amount} then
-	       {Drone {PartitionToTimedList H.note} H.amount T}
+	       case H.note
+	       of note(name:Name octave:Octave sharp:Sharp duration:Duration instrument:Instrument) then
+		  {Drone H.note H.amount T}
+	       [] H2|T2 then
+		  {Drone {PartitionToTimedList H.note} H.amount T}
+	       else
+		  {Drone {NoteToExtended H.note} H.amount T}
+	       end
 	    else
-	       {Drone {PartitionToTimedList H.note} {Float.toInt H.amount} T}
+	       case H.note
+	       of note(name:Name octave:Octave sharp:Sharp duration:Duration instrument:Instrument) then
+		  {Drone H.note {Float.toInt H.amount} T}
+	       [] H2|T2 then
+		  {Drone {PartitionToTimedList H.note} {Float.toInt H.amount} T}
+	       else
+		  {Drone {NoteToExtended H.note} {Float.toInt H.amount} T}
+	       end
 	    end
 
 	 [] transpose(semitones:Semitones Partition) then
-	       {Transpose {PartitionToTimedList Partition} {Int.'mod' H.semitones 12} {Int.'div' H.semitones 12} T}
+	    {Transpose {PartitionToTimedList Partition} {Int.'mod' H.semitones 12} {Int.'div' H.semitones 12} T}
 
 	 [] H2|T2 then
 	    case H2
 
-     	    of note(name:Name octave:Octave sharp:Sharp duration:Duration instrument:Instrument) then
-     	       H|{PartitionToTimedList T}
+	    of note(name:Name octave:Octave sharp:Sharp duration:Duration instrument:Instrument) then
+	       H|{PartitionToTimedList T}
 
-     	    [] silence(duration:Duration) then %pas sure qu'il y ai besoin en pratique mais grammaire
-     	       H|{PartitionToTimedList T}
+	    [] silence(duration:Duration) then
+	       H|{PartitionToTimedList T}
 
-     	    [] Name#Octave then
-     	       {PartitionToTimedList H}|{PartitionToTimedList T}
+	    [] Name#Octave then
+	       {PartitionToTimedList H}|{PartitionToTimedList T}
 
-     	    [] Atom then
+	    [] nil then
+	       nil|{PartitionToTimedList T}
+
+	    [] Atom then
 	       {PartitionToTimedList H}|{PartitionToTimedList T}
 	    end
+	    
 	 [] silence then
 	    {NoteToExtended H}|{PartitionToTimedList T}
 	    
@@ -692,13 +728,16 @@ local
 	 [] silence(duration:Duration) then
 	    H|{PartitionToTimedList T}
 
+	 [] nil then
+	    nil|{PartitionToTimedList T}
+
 	 [] Atom then
 	    {NoteToExtended H}|{PartitionToTimedList T}
-	 end
+	 end	 
       end
    end
 
-%Cette fonction additionne deux listes
+%Cette fonction additionne deux listes.
    fun {AddList L1 L2}
       case L1
       of H1|T1 then
@@ -718,7 +757,7 @@ local
       end
    end
 
-%Cette fonction multiplie les entrées d'une liste par un facteur
+%Cette fonction multiplie les entrées d'une liste par un facteur.
    fun {MultiplyList Factor EchantillonList}
       case EchantillonList
       of H|T then
@@ -743,7 +782,7 @@ local
       end
    
    
-%Cette fonction repete une musique un nombre Amount de fois
+%Cette fonction repete une musique un nombre Amount de fois.
 
    fun {Repeat Amount Samples}
       if Amount > 0 then
@@ -753,7 +792,7 @@ local
       end
    end
    
-%Cette fonction boucle une musique pendant Duration secondes
+%Cette fonction boucle une musique pendant Duration secondes.
 
    fun {Loop Duration Samples}
       local X Y Z A B
@@ -780,7 +819,7 @@ local
       end
    end
    
-%Cette fonction contraint les echantillons a une valeur plancher et plafond
+%Cette fonction contraint les echantillons a une valeur plancher et plafond.
 
    fun {Clip Low High Samples}
       case Samples
@@ -818,7 +857,7 @@ local
       end
    end
 
-%Cette fonction creer un fondu au debut et a la fin d'une musique d'une duree respective de start et finish secondes
+%Cette fonction creer un fondu au debut et a la fin d'une musique d'une duree respective de start et finish secondes.
    fun{Fade Start Out Samples}
       local X Y A B FadeStartOut C D E F
 	 FadeStartOut =
@@ -844,7 +883,7 @@ local
       end
    end
 
-%Cette fonction recupere la partie de la musique qui se trouve entre Start et Finish secondes, si cette intervalle est plus grand que la musique, celle ci est completer par du silence
+%Cette fonction recupere la partie de la musique qui se trouve entre Start et Finish secondes, si cette intervalle est plus grand que la musique, celle ci est completer par du silence.
    fun {Cut Start Finish Samples}
       local X Y Z Cut2 Cut3
 	 Cut2 =
@@ -886,7 +925,7 @@ local
       end
    end
    
-%Cette fonction concat 2 listes
+%Cette fonction concat 2 listes.
    fun {Concat L1 L2}
       case L1
       of H|T then
@@ -898,9 +937,19 @@ local
       end
    end	 
 	 
-%Cette fonction calcule la %formule pour convertir le temps de la note en nombre d'echantillon ainsi que la fr�quence
+%Cette fonction calcule la formule pour convertir le temps de la note en nombre d'echantillon ainsi que sa frequence
    fun {Echantillon FlatPartition Depart}
-      local Hauteur F D A 
+      local Hauteur F D A SumEchantillon
+	 SumEchantillon =
+	 fun {$ List  Accumu}
+	    case List
+	    of H|T then
+	       {SumEchantillon T Accumu+H}
+	    else
+	       Accumu
+	    end
+	 end
+	 
       in
 	 case FlatPartition
 	 of nil then
@@ -912,6 +961,16 @@ local
 	       {Concat {Echantillon2 D 0 Depart} {Echantillon T 0.0}}
 	    [] nil then
 	       nil
+	    [] H2|T2 then
+	       case H2
+	       of nil then
+		  {Echantillon T 0.0}
+	       [] note(name:Name octave:Octave sharp:Sharp duration:Duration instrument:Instrument) then
+		  D = {Echantillon H 0.0}
+		  F = {Float.'/'{SumEchantillon D 0.0} {Int.toFloat {List.length D}}}
+		  {Concat F {Echantillon T 0.0}}
+	       end
+	       
 	    [] note(name:Name octave:Octave sharp:Sharp duration:Duration instrument:Instrument) then
 	       if H.name == c then
 		  if H.sharp == false then
@@ -995,7 +1054,7 @@ local
       end
    end
    
-%Cette fonction est la suite d'echantillon et calcule la valeur des echantillons pour une note
+%Cette fonction est la suite d'echantillon et calcule la valeur des echantillons pour une note.
    fun {Echantillon2 D F Depart}
       local
 	 A
@@ -1013,7 +1072,7 @@ local
       end
    end
 
-%Cette fonction prend une musique en entree et retourne une liste d'echantillon.(Mix2 est le pour permettre la recursion)
+%Cette fonction prend une musique en entree et retourne une liste d'echantillon.(Mix2 est le pour permettre la recursion).
 
    fun {Mix P2T Music}
       {Mix2 P2T Music}
@@ -1064,21 +1123,20 @@ local
 	    end
 	 end
       end
-      %{Project.readFile 'wave\animals\cow.wav'}
    end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
    
-   Music = {Project.load}
+   Music = [partition([a a [note(name:a octave:4 sharp:false duration:1.0 instrument:none) note(name:a octave:4 sharp:false duration:1.0 instrument:none)] a a])]
+   %Music = {Project.load CWD#'exemple.dj.oz'}
    %Start
 in
-   
+   {Browse {Mix PartitionToTimedList Music}}
    %Start = {Time}
-   
    % Calls your code, prints the result and outputs the result to `out.wav`.
-   {Browse {Project.run Mix PartitionToTimedList Music 'out.wav'}}
-   
+   %{Browse {Project.run Mix PartitionToTimedList Music 'out.wav'}}
    % Shows the total time to run your code.
    %{Browse {IntToFloat {Time}-Start} / 1000.0}
    
 end
+ 
